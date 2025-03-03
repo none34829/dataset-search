@@ -66,7 +66,7 @@ export default function SignInForm({}: LoginFormProps) {
       }
     } catch (error) {
       console.error("An error occurred:", error);
-      setErrorMessage("An error occurred during sign-in.");
+      setErrorMessage("Wrong Email or Password!");
     }
   };
 

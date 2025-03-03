@@ -4,6 +4,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Inspirit AI',
   description: '',
+  icons: {
+    icon: '/e3f18e65-7ec7-48b0-b0b1-90b1d806ebea-8.png',
+  },
 }
 
 export default function RootLayout({
@@ -13,7 +16,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <link rel="icon" href="/e3f18e65-7ec7-48b0-b0b1-90b1d806ebea-8.png" type="image/png" />
+      </head>
+      <body>
+        {children}
+      </body>
     </html>
   )
 }
