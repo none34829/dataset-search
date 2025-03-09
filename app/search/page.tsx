@@ -21,7 +21,20 @@ import {
   Computer, 
   Users, 
   Palette, 
-  BookText 
+  BookText,
+  Music,
+  Building,
+  Gamepad2,
+  Newspaper,
+  Scale,
+  Trophy,
+  Languages,
+  GraduationCap,
+  Brain,
+  Telescope,
+  Handshake,
+  Globe,
+  ExternalLink
 } from "lucide-react"
 
 // Initialize the Inter font
@@ -106,6 +119,180 @@ const domainColors = {
     icon: "bg-yellow-500", 
     hover: "hover:bg-yellow-100",
     IconComponent: BookText
+  },
+  "Music": { 
+    bg: "bg-pink-50", 
+    icon: "bg-pink-500", 
+    hover: "hover:bg-pink-100",
+    IconComponent: Music
+  },
+  "Arts & Culture": { 
+    bg: "bg-fuchsia-50", 
+    icon: "bg-fuchsia-500", 
+    hover: "hover:bg-fuchsia-100",
+    IconComponent: Palette
+  },
+  "Business & Finance": { 
+    bg: "bg-emerald-50", 
+    icon: "bg-emerald-500", 
+    hover: "hover:bg-emerald-100",
+    IconComponent: Building
+  },
+  "Gaming": { 
+    bg: "bg-violet-50", 
+    icon: "bg-violet-500", 
+    hover: "hover:bg-violet-100",
+    IconComponent: Gamepad2
+  },
+  "Healthcare & Biology": { 
+    bg: "bg-rose-50", 
+    icon: "bg-rose-500", 
+    hover: "hover:bg-rose-100",
+    IconComponent: Dna
+  },
+  "Journalism": { 
+    bg: "bg-blue-50", 
+    icon: "bg-blue-500", 
+    hover: "hover:bg-blue-100",
+    IconComponent: Newspaper
+  },
+  "Humanitarian Efforts & Social Justice": { 
+    bg: "bg-teal-50", 
+    icon: "bg-teal-500", 
+    hover: "hover:bg-teal-100",
+    IconComponent: Scale
+  },
+  "Sports": { 
+    bg: "bg-red-50", 
+    icon: "bg-red-500", 
+    hover: "hover:bg-red-100",
+    IconComponent: Trophy
+  },
+  "Language & Literature": { 
+    bg: "bg-yellow-50", 
+    icon: "bg-yellow-500", 
+    hover: "hover:bg-yellow-100",
+    IconComponent: Languages
+  },
+  "Political Science & Law": { 
+    bg: "bg-sky-50", 
+    icon: "bg-sky-500", 
+    hover: "hover:bg-sky-100",
+    IconComponent: Scale
+  },
+  "Education": { 
+    bg: "bg-amber-50", 
+    icon: "bg-amber-500", 
+    hover: "hover:bg-amber-100",
+    IconComponent: GraduationCap
+  },
+  "Psychology": { 
+    bg: "bg-purple-50", 
+    icon: "bg-purple-500", 
+    hover: "hover:bg-purple-100",
+    IconComponent: Brain
+  },
+  "Physics & Astronomy": { 
+    bg: "bg-indigo-50", 
+    icon: "bg-indigo-500", 
+    hover: "hover:bg-indigo-100",
+    IconComponent: Telescope
+  },
+  "Games": { 
+    bg: "bg-violet-50", 
+    icon: "bg-violet-500", 
+    hover: "hover:bg-violet-100",
+    IconComponent: Gamepad2
+  },
+  "Psychology, Healthcare & Biology": { 
+    bg: "bg-rose-50", 
+    icon: "bg-rose-500", 
+    hover: "hover:bg-rose-100",
+    IconComponent: Brain
+  },
+  "Gaming, Language & Literature": { 
+    bg: "bg-yellow-50", 
+    icon: "bg-yellow-500", 
+    hover: "hover:bg-yellow-100",
+    IconComponent: Gamepad2
+  },
+  "Engineering, Language & Literature": { 
+    bg: "bg-orange-50", 
+    icon: "bg-orange-500", 
+    hover: "hover:bg-orange-100",
+    IconComponent: Cog
+  },
+  "Psychology, Language & Literature": { 
+    bg: "bg-purple-50", 
+    icon: "bg-purple-500", 
+    hover: "hover:bg-purple-100",
+    IconComponent: Brain
+  },
+  "Arts & Culture, Language & Literature": { 
+    bg: "bg-fuchsia-50", 
+    icon: "bg-fuchsia-500", 
+    hover: "hover:bg-fuchsia-100",
+    IconComponent: Palette
+  },
+  "Language & Literature, Journalism": { 
+    bg: "bg-yellow-50", 
+    icon: "bg-yellow-500", 
+    hover: "hover:bg-yellow-100",
+    IconComponent: Newspaper
+  },
+  "Education, Language & Literature": { 
+    bg: "bg-amber-50", 
+    icon: "bg-amber-500", 
+    hover: "hover:bg-amber-100",
+    IconComponent: GraduationCap
+  },
+  "Engineering, Education": { 
+    bg: "bg-orange-50", 
+    icon: "bg-orange-500", 
+    hover: "hover:bg-orange-100",
+    IconComponent: Cog
+  },
+  "Humanitarian Efforts & Social Justice, Education": { 
+    bg: "bg-teal-50", 
+    icon: "bg-teal-500", 
+    hover: "hover:bg-teal-100",
+    IconComponent: Handshake
+  },
+  "Humanitarian Efforts & Social Justice, Political Science & Law": { 
+    bg: "bg-teal-50", 
+    icon: "bg-teal-500", 
+    hover: "hover:bg-teal-100",
+    IconComponent: Scale
+  },
+  "Journalism, Sports": { 
+    bg: "bg-blue-50", 
+    icon: "bg-blue-500", 
+    hover: "hover:bg-blue-100",
+    IconComponent: Newspaper
+  },
+  "Environment, Engineering": { 
+    bg: "bg-green-50", 
+    icon: "bg-green-500", 
+    hover: "hover:bg-green-100",
+    IconComponent: Leaf
+  },
+  "Environment, Chemistry": { 
+    bg: "bg-green-50", 
+    icon: "bg-green-500", 
+    hover: "hover:bg-green-100",
+    IconComponent: Beaker
+  },
+  "Engineering, Language & Literature, Education": {
+    bg: "bg-orange-50",
+    icon: "bg-orange-500",
+    hover: "hover:bg-orange-100",
+    IconComponent: Cog
+  },
+  "Global": {
+    bg: "bg-blue-50",
+    icon: "bg-blue-500",
+    hover: "hover:bg-blue-100",
+    IconComponent: Globe
   }
 }
 
@@ -121,47 +308,99 @@ const difficultyClasses = {
 const mockDatasets = [
   {
     id: "1",
-    name: "Historical Events Analysis",
-    domain: "Computer Science",
-    description: "Dataset containing major historical events from 1900-2000, with timestamps, locations, and key figures involved.",
-    cleanliness: "Difficult",
-    sampleProject: "Learn about data analysis on event chronological sequences and how to identify patterns across time.",
-    types: "List of historical events with dates, locations, key figures, descriptions, outcomes, and related events.",
-    supplementalInfo: "Includes linked references to primary sources and historical documents where available.",
-    fullDescription: "This comprehensive historical dataset covers major world events throughout the 20th century. It includes timestamps down to the day (and sometimes hour) when available, precise geographic coordinates, key historical figures involved, detailed descriptions, immediate and long-term outcomes, and connections to related events. The dataset has been compiled from multiple authoritative sources and cross-referenced for accuracy."
+    name: "Last.FM User Listening Dataset",
+    domain: "Music",
+    description: "Comprehensive profiles of users' music tastes with artist, track, album data and timestamps from January 2021.",
+    cleanliness: "Medium",
+    sampleProject: "Build a music recommendation system based on listening patterns and user preferences.",
+    types: "Username, artist names, track names, album names, listening dates and timestamps.",
+    supplementalInfo: "Can be combined with artist metadata for enhanced analysis and music similarity assessment.",
+    fullDescription: "This extensive music dataset contains detailed profiles of users' listening habits captured from Last.FM. It includes usernames, artist names, track names, album information, and precise timestamps from January 1-31, 2021. The dataset is ideal for building recommendation engines, analyzing music taste patterns, and studying temporal aspects of music consumption. With over 100,000 entries, it provides sufficient data for robust machine learning models while requiring some preprocessing to handle inconsistencies in artist and track naming conventions.",
+    link: "https://www.kaggle.com/datasets/harshal19t/lastfm-dataset"
   },
   {
     id: "2",
-    name: "Environmental Metrics Collection",
-    domain: "Environment",
-    description: "Global environmental measurements including air quality, temperature variations, and pollution levels from 2010-2023.",
+    name: "Spotify Million Playlist Challenge",
+    domain: "Music",
+    description: "World's largest public dataset of music playlists featuring 1 million playlists with over 2 million unique tracks by nearly 300,000 artists.",
     cleanliness: "Easy",
-    sampleProject: "Analyze trends in air quality across different regions and their correlation with industrial activity.",
-    types: "Time series data of environmental measurements, geographic coordinates, measurement types, and source information.",
-    supplementalInfo: "Supplemented with industrial activity indices and population density data for correlation studies.",
-    fullDescription: "This dataset provides comprehensive environmental measurements collected from monitoring stations worldwide between 2010-2023. It includes hourly readings of air quality indexes (PM2.5, PM10, NO2, SO2, CO, O3), temperature, humidity, precipitation, and various pollution metrics. All measurements are geotagged and include metadata about the collection methods and equipment used. The dataset is regularly cleaned and verified against multiple sources to ensure accuracy."
+    sampleProject: "Develop an intelligent track recommender system or create a playlist name generator based on content patterns.",
+    types: "Playlist metadata, song data, artist information, and user curation patterns.",
+    supplementalInfo: "Dataset created specifically for research in music information retrieval and recommendation systems.",
+    fullDescription: "The Spotify Million Playlist Dataset Challenge provides an unprecedented collection of 1 million music playlists containing over 2 million unique tracks by nearly 300,000 artists. This dataset represents the largest public collection of music playlists in the world and was created specifically for advancing research in music recommendation systems. Each playlist includes metadata about included tracks, sequencing, and descriptive titles, making it ideal for projects involving sequence modeling, content recommendation, and natural language processing applications related to music.",
+    link: "https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge"
   },
   {
     id: "3",
-    name: "Chemical Compound Properties",
-    domain: "Chemistry", 
-    description: "Extensive database of chemical compounds with their physical and chemical properties, uses, and hazard classifications.",
-    cleanliness: "Medium",
-    sampleProject: "Predict boiling points and solubility of compounds based on their molecular structure.",
-    types: "Compound identifiers, molecular structures, physical properties, chemical properties, and safety information.",
-    supplementalInfo: "Includes 3D molecular structures and spectroscopic data for selected compounds.",
-    fullDescription: "This chemistry dataset contains detailed information on over 10,000 chemical compounds including IUPAC names, molecular formulas, structural data, physical properties (melting/boiling points, density, solubility), chemical reactivity, commercial applications, and complete safety classifications. The data has been compiled from multiple scientific databases and includes citation information for each property."
+    name: "FAANG Complete Stock Data",
+    domain: "Economics",
+    description: "Comprehensive historical stock data for Facebook, Apple, Amazon, Netflix, and Google from their IPO dates to present.",
+    cleanliness: "Easy",
+    sampleProject: "Predict future stock trends or analyze how major world events impact tech company valuations.",
+    types: "Daily open/close prices, highs, lows, volume, and adjusted values for each company.",
+    supplementalInfo: "Can be correlated with major world events datasets for contextual analysis.",
+    fullDescription: "This meticulously maintained financial dataset contains complete historical stock data for the FAANG companies (Facebook/Meta, Apple, Amazon, Netflix, and Google/Alphabet) from their initial public offerings to the present day. Each entry includes daily opening and closing prices, daily highs and lows, trading volume, and adjusted values accounting for splits and dividends. The data is exceptionally clean and ready for immediate use in financial modeling, trend analysis, or correlation studies with external factors such as market indices, economic indicators, or global events.",
+    link: "https://www.kaggle.com/datasets/aayushmishra1512/faang-complete-stock-data"
   },
   {
     id: "4",
-    name: "Quantum Physics Experiments",
-    domain: "Physics",
-    description: "Results from quantum mechanics experiments conducted at major research institutions between 2015-2023.",
+    name: "National Bridge Inventory",
+    domain: "Engineering",
+    description: "Detailed information on more than 615,000 bridges across the United States, including structural details and condition assessments.",
+    cleanliness: "Difficult",
+    sampleProject: "Analyze bridge improvement patterns over time or predict maintenance needs based on structural factors.",
+    types: "Location data, bridge classifications, condition ratings, structural details, and maintenance history.",
+    supplementalInfo: "Includes data from state transportation departments and federal inspections.",
+    fullDescription: "The National Bridge Inventory is a comprehensive database containing detailed information on more than 615,000 bridges throughout the United States. Each bridge entry includes precise geospatial coordinates, structural specifications, classification details, condition ratings from professional inspections, construction and maintenance dates, and traffic data. This dataset is valuable for civil engineering analysis, infrastructure planning, and safety assessments, though it requires significant preprocessing due to its complex structure and occasional inconsistencies in reporting standards across different states and jurisdictions.",
+    link: "https://www.fhwa.dot.gov/bridge/nbi.cfm"
+  },
+  {
+    id: "5",
+    name: "The Metropolitan Museum of Art Collection",
+    domain: "Arts",
+    description: "Public data spanning 5,000 years of global art history featuring complete metadata on the Met's extensive collection.",
     cleanliness: "Critical",
-    sampleProject: "Analyze quantum entanglement measurements and test Bell's inequalities.",
-    types: "Experimental setup parameters, measurement results, uncertainty values, and theoretical predictions.",
-    supplementalInfo: "Includes researcher notes and alternative interpretations of unexpected results.",
-    fullDescription: "This dataset comprises detailed results from cutting-edge quantum physics experiments conducted at CERN, Fermilab, and other major research institutions. It includes precise measurements from quantum entanglement tests, quantum computing qubit stability experiments, quantum field observations, and more. Each experiment entry contains detailed setup parameters, raw measurement data, statistical analysis, uncertainty calculations, and comparisons to theoretical predictions. This is a highly specialized dataset intended for physics researchers and advanced students."
+    sampleProject: "Create an art style classifier or develop a generator for period-appropriate artwork descriptions.",
+    types: "Artist information, time periods, mediums, dimensions, provenance data, and high-resolution image URLs.",
+    supplementalInfo: "Includes curatorial notes and historical context for major pieces.",
+    fullDescription: "This extensive arts dataset provides complete access to The Metropolitan Museum of Art's vast collection spanning 5,000 years of global art history. Each entry contains rich metadata including artist information, historical period classification, medium descriptions, precise physical dimensions, geographical origin, provenance history, and URLs to high-resolution images when available. The dataset presents significant challenges due to its size (over 100,000 items), inconsistent formatting across different collection departments, multilingual text entries, and complex historical attributions. However, it offers unparalleled opportunities for art historical analysis, style classification, and cultural pattern recognition.",
+    link: "https://github.com/metmuseum/openaccess"
+  },
+  {
+    id: "6",
+    name: "Global Power Plant Database",
+    domain: "Environment",
+    description: "Comprehensive open-source database of power plants worldwide with detailed information on energy production and environmental impact.",
+    cleanliness: "Medium",
+    sampleProject: "Develop a plant type recommender based on environmental factors or analyze correlation between plant types and local environmental metrics.",
+    types: "Plant types, energy capacity, generation statistics, ownership structure, and fuel type classifications.",
+    supplementalInfo: "Can be integrated with climate and emissions data for impact assessment.",
+    fullDescription: "The Global Power Plant Database is a comprehensive, open-source collection of detailed information on power generation facilities worldwide. It categorizes plants by type (coal, gas, oil, nuclear, biomass, waste, geothermal, hydro, wind, solar), and includes data on generation capacity, actual production, ownership structures, and specific fuel types. With over 10,000 entries covering major power facilities globally, this dataset enables analysis of energy production patterns, transition to renewable sources, and environmental impact assessments. The data requires some preprocessing to harmonize reporting standards across different countries but is generally well-structured and reliable.",
+    link: "https://datasets.wri.org/dataset/globalpowerplantdatabase"
+  },
+  {
+    id: "7",
+    name: "OpenMic Multi-Instrument Recognition",
+    domain: "Computer Science",
+    description: "Dataset for researching multi-instrument recognition in polyphonic music recordings, a fundamental problem in music information retrieval.",
+    cleanliness: "Difficult",
+    sampleProject: "Develop an AI system that can identify multiple instruments playing simultaneously in complex audio recordings.",
+    types: "10-second audio snippets, VGGish features as JSON objects, aggregated labels, and track metadata.",
+    supplementalInfo: "Includes anonymized individual responses from human annotators to establish ground truth.",
+    fullDescription: "OpenMic is a specialized dataset created for addressing the challenge of multi-instrument recognition in polyphonic music recordings. It contains thousands of 10-second audio snippets, each professionally annotated for the presence of multiple instruments. The data includes raw audio files, pre-extracted VGGish audio features, aggregated instrument labels, and detailed track metadata including licensing information. This dataset is particularly valuable for developing machine learning models for audio signal processing, though it requires significant domain expertise to utilize effectively due to its complex structure and specialized audio feature representations.",
+    link: "https://github.com/cosmir/openmic-2018"
+  },
+  {
+    id: "8",
+    name: "TikTok Dance Video Dataset",
+    domain: "Computer Science",
+    description: "Frame-by-frame images of social media dance videos scraped from TikTok, including masks and dense pose information.",
+    cleanliness: "Critical",
+    sampleProject: "Create a dance move classifier or develop an AI system that can identify and categorize choreographic sequences.",
+    types: "Raw video frames, segmentation masks, dense pose images, and corresponding video links.",
+    supplementalInfo: "Includes temporal metadata for synchronization analysis.",
+    fullDescription: "This innovative dataset contains frame-by-frame extractions from TikTok dance videos, providing researchers with rich visual data for computer vision applications in human movement analysis. Each sample includes raw image frames, precisely generated segmentation masks, dense pose representations that map 2D images to 3D body models, and links to the original videos. With over 100,000 annotated frames, this dataset enables research in dance move recognition, choreographic pattern analysis, and human pose estimation. The data requires substantial preprocessing due to its multi-modal nature and the complexity of the pose information, making it suitable for advanced computer vision projects.",
+    link: "https://www.kaggle.com/datasets/amritpal333/tiktokers-dance-dataset-dance-classification"
   }
 ];
 
@@ -370,9 +609,11 @@ export default function SearchPage() {
                   </div>
                   <h2 className="text-xl font-semibold">{dataset.name}</h2>
                 </div>
-                <p className="text-gray-600 mb-4 text-sm overflow-hidden line-clamp-3">{dataset.description}</p>
                 <div className="mb-2 text-sm">
                   <strong>Domain:</strong> {dataset.domain}
+                </div>
+                <div className="mb-2 text-sm">
+                <strong>Dataset Description:</strong><p className="text-gray-600 mb-4 text-sm overflow-hidden line-clamp-3">{dataset.description}</p>
                 </div>
                 <div className="mt-auto flex items-center justify-between">
                   <Button 
@@ -381,7 +622,16 @@ export default function SearchPage() {
                   >
                     {dataset.cleanliness}
                   </Button>
-                  <Button variant="outline" className="text-xs px-3 py-1 h-auto">Link</Button>
+                  <a 
+                    href={dataset.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()} // Prevent triggering the card's onClick
+                  >
+                    <Button variant="outline" className="text-xs px-3 py-1 h-auto">
+                      Link <ExternalLink className="h-4 w-4 ml-1" />
+                    </Button>
+                  </a>
                   <Button variant="ghost" size="sm" className="p-0">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M8 15A7 7 0 108 1a7 7 0 000 14z" stroke="currentColor" />
@@ -418,7 +668,7 @@ export default function SearchPage() {
             <div className="grid grid-cols-1 gap-4 py-4">
               <div className="rounded-lg p-4 border">
                 <h3 className="font-semibold mb-2">Dataset Description:</h3>
-                <p>{selectedDataset.fullDescription || selectedDataset.description}</p>
+                <p>{selectedDataset.description || selectedDataset.description}</p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -434,7 +684,15 @@ export default function SearchPage() {
                 
                 <div className="rounded-lg p-4 border">
                   <h3 className="font-semibold mb-2">Link:</h3>
-                  <Button variant="outline" className="px-3 py-1">Open Dataset</Button>
+                  <a 
+                    href={selectedDataset.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="outline" className="px-3 py-1 flex items-center">
+                      Open Dataset <ExternalLink className="h-4 w-4 ml-2" />
+                    </Button>
+                  </a>
                 </div>
               </div>
               
