@@ -20,7 +20,10 @@ export default function SignInForm({}: LoginFormProps) {
 
   // Mock user data for demonstration
   const mockUserData = {
-    student: { email: "student@example.com", password: "studentPass" },
+    student: [
+      { email: "student@example.com", password: "studentPass" },
+      { email: "ayushchauhan020305@gmail.com", password: "Reynasimp@69" }
+    ],
     mentor: { name: "Mentor Name", email: "mentor@example.com", password: "mentorPass" },
   };
 
@@ -34,40 +37,37 @@ export default function SignInForm({}: LoginFormProps) {
       password: formData.password,
     };
 
-    // Check credentials against mock data first
-    if (selectedType === "student" && (formData.identifier === mockUserData.student.email && formData.password === mockUserData.student.password)) {
-      console.log("Student signed in successfully!");
-      router.push('/search');
-      return;
-    } else if (selectedType === "mentor" && (formData.identifier === mockUserData.mentor.email && formData.password === mockUserData.mentor.password)) {
+    // Check credentials against mock data
+    if (selectedType === "student") {
+      const studentMatch = mockUserData.student.find(
+        student => student.email === userData.email && student.password === userData.password
+      );
+      
+      if (studentMatch) {
+        // Store user info in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          type: 'student',
+          email: userData.email
+        }));
+        console.log("Student signed in successfully!");
+        router.push('/search');
+        return;
+      }
+    } else if (selectedType === "mentor" && 
+               userData.email === mockUserData.mentor.email && 
+               userData.password === mockUserData.mentor.password) {
+      // Store user info in localStorage
+      localStorage.setItem('user', JSON.stringify({
+        type: 'mentor',
+        email: userData.email
+      }));
       console.log("Mentor signed in successfully!");
       router.push('/search');
       return;
     }
 
-    // If not matched, proceed with API call
-    try {
-      const response = await fetch('/api/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...userData, type: selectedType }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log(`${selectedType} signed in successfully!`, data);
-        router.push('/search');
-      } else {
-        console.error("Sign-in failed:", data.message);
-        setErrorMessage(data.message);
-      }
-    } catch (error) {
-      console.error("An error occurred:", error);
-      setErrorMessage("Wrong Email or Password!");
-    }
+    // If no match found, show error
+    setErrorMessage("Wrong Email or Password!");
   };
 
   return (

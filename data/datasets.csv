@@ -1,0 +1,4 @@
+name,domain,description,dataType,size,cleanliness,link,types,sampleProject,supplementalInfo
+MNIST,Computer Vision,"Dataset of handwritten digits commonly used for training image processing systems",Image,60MB,High,https://example.com/mnist,"Classification, Image Recognition","Handwritten Digit Recognition","Contains 70,000 images, split into 60,000 training and 10,000 test images"
+CIFAR-10,Computer Vision,"Collection of color images for object recognition",Image,170MB,High,https://example.com/cifar10,"Classification, Object Detection","Image Classification","Contains 60,000 32x32 color images in 10 classes"
+IMDB Movie Reviews,NLP,"Large collection of movie reviews for sentiment analysis",Text,80MB,Medium,https://example.com/imdb,"Sentiment Analysis, Text Classification","Sentiment Analysis","Contains 50,000 reviews with binary sentiment labels" 
