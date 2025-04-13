@@ -41,10 +41,9 @@ import {
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
-// Mock user data for demonstration
-const mockUser = {
-  type: "mentor", // or "student"
-  email: "john.doe@example.com"
+interface User {
+  type: string;
+  email: string;
 }
 
 // Domain color schemes and icons
@@ -298,22 +297,40 @@ const domainColors = {
 }
 
 // Difficulty indicators
-const difficultyClasses = {
-  "Easy": "bg-green-500 hover:bg-green-600",
-  "Medium": "bg-yellow-500 hover:bg-yellow-600",
-  "Difficult": "bg-red-500 hover:bg-red-600",
-  "Critical": "bg-red-600 hover:bg-red-700"
+const difficultyClasses: Record<string, string> = {
+  "Excellent, ready to use": "bg-green-100 text-green-800 hover:bg-green-200",
+  "Great, just needs preprocessing": "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
+  "Good, needs to be preprocessed and organized or difficult/atypical data type": "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+  "Difficult (noisy, extremely large, significant preprocessing and/or computation)": "bg-red-100 text-red-800 hover:bg-red-200"
+}
+
+// Mapping for display text
+const cleanlinessDisplayText: Record<string, string> = {
+  "Excellent, ready to use": "✅ Ready to use",
+  "Great, just needs preprocessing": "✳️ Clean (minor prep)",
+  "Good, needs to be preprocessed and organized or difficult/atypical data type": "⚠️ Messy/Complex",
+  "Difficult (noisy, extremely large, significant preprocessing and/or computation)": "❌ Difficult/Noisy"
+}
+
+// Size range mapping
+const sizeRanges = {
+  "small": { min: 0, max: 1000, label: "Small (< 1K)" },
+  "medium": { min: 1001, max: 10000, label: "Medium (1K-10K)" },
+  "large": { min: 10001, max: 100000, label: "Large (10K-100K)" },
+  "very_large": { min: 100001, max: Infinity, label: "Very Large (> 100K)" }
 }
 
 export default function SearchPage() {
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
+  const [selectedCleanliness, setSelectedCleanliness] = useState<string | null>(null)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [mockUser, setMockUser] = useState<{ type: string; email: string } | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   
   useEffect(() => {
     // Load user info from localStorage
@@ -322,7 +339,7 @@ export default function SearchPage() {
       router.push('/') // Redirect to login if no user found
       return
     }
-    setMockUser(JSON.parse(userStr))
+    setUser(JSON.parse(userStr))
 
     // Load datasets
     async function fetchDatasets() {
@@ -338,30 +355,48 @@ export default function SearchPage() {
     fetchDatasets()
   }, [router])
 
-  // Filter datasets based on search query and selected domain
+  // Helper function to parse size string and get numeric value
+  const getSizeValue = (size: string): number => {
+    const numericPart = size.match(/\d+/);
+    return numericPart ? parseInt(numericPart[0]) : 0;
+  }
+
+  // Helper function to check if a dataset size falls within a range
+  const isInSizeRange = (datasetSize: string, range: keyof typeof sizeRanges) => {
+    const sizeValue = getSizeValue(datasetSize);
+    return sizeValue >= sizeRanges[range].min && sizeValue <= sizeRanges[range].max;
+  }
+
+  // Filter datasets based on search query, selected domain, cleanliness, and size
   const filteredDatasets = datasets.filter(dataset => {
     const matchesQuery = query === "" || 
       dataset.name.toLowerCase().includes(query.toLowerCase()) ||
       dataset.description.toLowerCase().includes(query.toLowerCase())
     
-    const matchesDomain = !selectedDomain || dataset.domain === selectedDomain
+    const matchesDomain = !selectedDomain || selectedDomain === "all" || dataset.domain === selectedDomain
+    
+    const matchesCleanliness = !selectedCleanliness || selectedCleanliness === "all" || 
+      cleanlinessDisplayText[dataset.cleanliness] === selectedCleanliness
 
-    return matchesQuery && matchesDomain
+    const matchesSize = !selectedSize || selectedSize === "all" || 
+      isInSizeRange(dataset.size, selectedSize as keyof typeof sizeRanges)
+
+    return matchesQuery && matchesDomain && matchesCleanliness && matchesSize
   })
 
   // Get unique domains from datasets
-  const domains = Array.from(new Set(datasets.map(d => d.domain)))
+  const domains = Array.from(new Set(datasets.map(d => d.domain))).sort()
 
   const handleDomainChange = (value: string) => {
-    setSelectedDomain(value);
-    if (value && value !== "all") {
-      const filtered = datasets.filter(dataset => 
-        dataset.domain.toLowerCase() === value.toLowerCase()
-      );
-      setDatasets(filtered);
-    } else {
-      setDatasets(datasets);
-    }
+    setSelectedDomain(value === "all" ? null : value);
+  };
+
+  const handleCleanlinessChange = (value: string) => {
+    setSelectedCleanliness(value === "all" ? null : value);
+  };
+
+  const handleSizeChange = (value: string) => {
+    setSelectedSize(value === "all" ? null : value);
   };
   
   const openDatasetModal = (dataset: Dataset) => {
@@ -371,27 +406,27 @@ export default function SearchPage() {
   
   // Generate profile initials based on user email
   const getProfileInitials = () => {
-    if (!mockUser) return '';
+    if (!user) return '';
     
-    if (mockUser.type === 'mentor') {
+    if (user.type === 'mentor') {
       // For mentors: Get initials from email (e.g., john.doe@example.com -> JD)
-      const name = mockUser.email.split('@')[0];
+      const name = user.email.split('@')[0];
       const parts = name.split(/[._]/);
       return parts.length > 1 
         ? (parts[0][0] + parts[1][0]).toUpperCase()
         : name.substring(0, 2).toUpperCase();
     } else {
       // For students: First two letters of email
-      return mockUser.email.substring(0, 2).toUpperCase();
+      return user.email.substring(0, 2).toUpperCase();
     }
   };
   
   // Extract name from email for display purposes
   const getNameFromEmail = () => {
-    if (!mockUser) return ''
+    if (!user) return ''
     
     // Extract the part before @ in the email
-    const emailName = mockUser.email.split('@')[0];
+    const emailName = user.email.split('@')[0];
     
     // Split by common separators like dots, underscores, hyphens
     const nameParts = emailName.split(/[._-]/);
@@ -410,7 +445,7 @@ export default function SearchPage() {
     router.push('/')
   }
   
-  if (!mockUser) {
+  if (!user) {
     return null; // or a loading state
   }
 
@@ -475,16 +510,30 @@ export default function SearchPage() {
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Input 
-            placeholder="Search (should be a live filter searching on Dataset Name and dataset description)" 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-            className="md:col-span-2"
-          />
-          <Select onValueChange={handleDomainChange}>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="relative md:col-span-2">
+            <Input 
+              placeholder="Search" 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              className="pr-10"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label="Clear search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
+          </div>
+          <Select value={selectedDomain || "all"} onValueChange={handleDomainChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Domain (Dropdown)" />
+              <SelectValue placeholder="Domain" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Domains</SelectItem>
@@ -493,16 +542,28 @@ export default function SearchPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={selectedCleanliness || "all"} onValueChange={handleCleanlinessChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Cleanliness (Dropdown)" />
+              <SelectValue placeholder="Data Quality" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="easy">Easy</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="difficult">Difficult</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="all">All Data Qualities</SelectItem>
+              <SelectItem value="✅ Ready to use">✅ Ready to use</SelectItem>
+              <SelectItem value="✳️ Clean (minor prep)">✳️ Clean (minor prep)</SelectItem>
+              <SelectItem value="⚠️ Messy/Complex">⚠️ Messy/Complex</SelectItem>
+              <SelectItem value="❌ Difficult/Noisy">❌ Difficult/Noisy</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={selectedSize || "all"} onValueChange={handleSizeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Data Sizes</SelectItem>
+              <SelectItem value="small">{sizeRanges.small.label}</SelectItem>
+              <SelectItem value="medium">{sizeRanges.medium.label}</SelectItem>
+              <SelectItem value="large">{sizeRanges.large.label}</SelectItem>
+              <SelectItem value="very_large">{sizeRanges.very_large.label}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -515,7 +576,7 @@ export default function SearchPage() {
             </div>
           ) : filteredDatasets.map((dataset) => {
             const domainConfig = domainColors[dataset.domain as keyof typeof domainColors] || domainColors.Chemistry;
-            const difficultyClass = difficultyClasses[dataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses.Medium;
+            const difficultyClass = difficultyClasses[dataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"];
             const IconComponent = domainConfig.IconComponent;
             
             return (
@@ -542,7 +603,7 @@ export default function SearchPage() {
                     variant="default" 
                     className={`text-xs px-3 py-1 h-auto text-white ${difficultyClass} break-all`}
                   >
-                    {dataset.cleanliness}
+                    {cleanlinessDisplayText[dataset.cleanliness] || dataset.cleanliness}
                   </Button>
                   <a 
                     href={dataset.link} 
@@ -595,7 +656,9 @@ export default function SearchPage() {
                 
                 <div className="rounded-lg p-4 border">
                   <h3 className="font-semibold mb-2">Cleanliness:</h3>
-                  <p>{selectedDataset.cleanliness}</p>
+                  <p className={`inline-block px-2 py-1 rounded ${difficultyClasses[selectedDataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"]}`}>
+                    {selectedDataset.cleanliness}
+                  </p>
                 </div>
                 
                 <div className="rounded-lg p-4 border">
@@ -609,6 +672,18 @@ export default function SearchPage() {
                       Open Dataset <ExternalLink className="h-4 w-4 ml-2" />
                     </Button>
                   </a>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg p-4 border">
+                  <h3 className="font-semibold mb-2">Data Type:</h3>
+                  <p>{selectedDataset.dataType}</p>
+                </div>
+                
+                <div className="rounded-lg p-4 border">
+                  <h3 className="font-semibold mb-2">Size:</h3>
+                  <p>{selectedDataset.size}</p>
                 </div>
               </div>
               
