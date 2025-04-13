@@ -21,6 +21,16 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.csv$/,
+      loader: 'file-loader',
+      options: {
+        name: '[name].[ext]',
+      },
+    });
+    return config;
+  },
 }
 
 mergeConfig(nextConfig, userConfig)

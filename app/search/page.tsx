@@ -3,7 +3,8 @@ import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type Dataset, searchDatasets } from "@/lib/api"
+import { type Dataset } from "@/lib/datasetLoader"
+import { loadDatasets } from "@/lib/datasetLoader"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -40,10 +41,9 @@ import {
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
-// Mock user data for demonstration
-const mockUser = {
-  type: "mentor", // or "student"
-  email: "john.doe@example.com"
+interface User {
+  type: string;
+  email: string;
 }
 
 // Domain color schemes and icons
@@ -297,184 +297,161 @@ const domainColors = {
 }
 
 // Difficulty indicators
-const difficultyClasses = {
-  "Easy": "bg-green-500 hover:bg-green-600",
-  "Medium": "bg-yellow-500 hover:bg-yellow-600",
-  "Difficult": "bg-red-500 hover:bg-red-600",
-  "Critical": "bg-red-600 hover:bg-red-700"
+const difficultyClasses: Record<string, string> = {
+  "Excellent, ready to use": "bg-green-100 text-green-800 hover:bg-green-200",
+  "Great, just needs preprocessing": "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
+  "Good, needs to be preprocessed and organized or difficult/atypical data type": "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+  "Difficult (noisy, extremely large, significant preprocessing and/or computation)": "bg-red-100 text-red-800 hover:bg-red-200"
 }
 
-// Mock datasets
-const mockDatasets = [
-  {
-    id: "1",
-    name: "Last.FM User Listening Dataset",
-    domain: "Music",
-    description: "Comprehensive profiles of users' music tastes with artist, track, album data and timestamps from January 2021.",
-    cleanliness: "Medium",
-    sampleProject: "Build a music recommendation system based on listening patterns and user preferences.",
-    types: "Username, artist names, track names, album names, listening dates and timestamps.",
-    supplementalInfo: "Can be combined with artist metadata for enhanced analysis and music similarity assessment.",
-    fullDescription: "This extensive music dataset contains detailed profiles of users' listening habits captured from Last.FM. It includes usernames, artist names, track names, album information, and precise timestamps from January 1-31, 2021. The dataset is ideal for building recommendation engines, analyzing music taste patterns, and studying temporal aspects of music consumption. With over 100,000 entries, it provides sufficient data for robust machine learning models while requiring some preprocessing to handle inconsistencies in artist and track naming conventions.",
-    link: "https://www.kaggle.com/datasets/harshal19t/lastfm-dataset"
-  },
-  {
-    id: "2",
-    name: "Spotify Million Playlist Challenge",
-    domain: "Music",
-    description: "World's largest public dataset of music playlists featuring 1 million playlists with over 2 million unique tracks by nearly 300,000 artists.",
-    cleanliness: "Easy",
-    sampleProject: "Develop an intelligent track recommender system or create a playlist name generator based on content patterns.",
-    types: "Playlist metadata, song data, artist information, and user curation patterns.",
-    supplementalInfo: "Dataset created specifically for research in music information retrieval and recommendation systems.",
-    fullDescription: "The Spotify Million Playlist Dataset Challenge provides an unprecedented collection of 1 million music playlists containing over 2 million unique tracks by nearly 300,000 artists. This dataset represents the largest public collection of music playlists in the world and was created specifically for advancing research in music recommendation systems. Each playlist includes metadata about included tracks, sequencing, and descriptive titles, making it ideal for projects involving sequence modeling, content recommendation, and natural language processing applications related to music.",
-    link: "https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge"
-  },
-  {
-    id: "3",
-    name: "FAANG Complete Stock Data",
-    domain: "Economics",
-    description: "Comprehensive historical stock data for Facebook, Apple, Amazon, Netflix, and Google from their IPO dates to present.",
-    cleanliness: "Easy",
-    sampleProject: "Predict future stock trends or analyze how major world events impact tech company valuations.",
-    types: "Daily open/close prices, highs, lows, volume, and adjusted values for each company.",
-    supplementalInfo: "Can be correlated with major world events datasets for contextual analysis.",
-    fullDescription: "This meticulously maintained financial dataset contains complete historical stock data for the FAANG companies (Facebook/Meta, Apple, Amazon, Netflix, and Google/Alphabet) from their initial public offerings to the present day. Each entry includes daily opening and closing prices, daily highs and lows, trading volume, and adjusted values accounting for splits and dividends. The data is exceptionally clean and ready for immediate use in financial modeling, trend analysis, or correlation studies with external factors such as market indices, economic indicators, or global events.",
-    link: "https://www.kaggle.com/datasets/aayushmishra1512/faang-complete-stock-data"
-  },
-  {
-    id: "4",
-    name: "National Bridge Inventory",
-    domain: "Engineering",
-    description: "Detailed information on more than 615,000 bridges across the United States, including structural details and condition assessments.",
-    cleanliness: "Difficult",
-    sampleProject: "Analyze bridge improvement patterns over time or predict maintenance needs based on structural factors.",
-    types: "Location data, bridge classifications, condition ratings, structural details, and maintenance history.",
-    supplementalInfo: "Includes data from state transportation departments and federal inspections.",
-    fullDescription: "The National Bridge Inventory is a comprehensive database containing detailed information on more than 615,000 bridges throughout the United States. Each bridge entry includes precise geospatial coordinates, structural specifications, classification details, condition ratings from professional inspections, construction and maintenance dates, and traffic data. This dataset is valuable for civil engineering analysis, infrastructure planning, and safety assessments, though it requires significant preprocessing due to its complex structure and occasional inconsistencies in reporting standards across different states and jurisdictions.",
-    link: "https://www.fhwa.dot.gov/bridge/nbi.cfm"
-  },
-  {
-    id: "5",
-    name: "The Metropolitan Museum of Art Collection",
-    domain: "Arts",
-    description: "Public data spanning 5,000 years of global art history featuring complete metadata on the Met's extensive collection.",
-    cleanliness: "Critical",
-    sampleProject: "Create an art style classifier or develop a generator for period-appropriate artwork descriptions.",
-    types: "Artist information, time periods, mediums, dimensions, provenance data, and high-resolution image URLs.",
-    supplementalInfo: "Includes curatorial notes and historical context for major pieces.",
-    fullDescription: "This extensive arts dataset provides complete access to The Metropolitan Museum of Art's vast collection spanning 5,000 years of global art history. Each entry contains rich metadata including artist information, historical period classification, medium descriptions, precise physical dimensions, geographical origin, provenance history, and URLs to high-resolution images when available. The dataset presents significant challenges due to its size (over 100,000 items), inconsistent formatting across different collection departments, multilingual text entries, and complex historical attributions. However, it offers unparalleled opportunities for art historical analysis, style classification, and cultural pattern recognition.",
-    link: "https://github.com/metmuseum/openaccess"
-  },
-  {
-    id: "6",
-    name: "Global Power Plant Database",
-    domain: "Environment",
-    description: "Comprehensive open-source database of power plants worldwide with detailed information on energy production and environmental impact.",
-    cleanliness: "Medium",
-    sampleProject: "Develop a plant type recommender based on environmental factors or analyze correlation between plant types and local environmental metrics.",
-    types: "Plant types, energy capacity, generation statistics, ownership structure, and fuel type classifications.",
-    supplementalInfo: "Can be integrated with climate and emissions data for impact assessment.",
-    fullDescription: "The Global Power Plant Database is a comprehensive, open-source collection of detailed information on power generation facilities worldwide. It categorizes plants by type (coal, gas, oil, nuclear, biomass, waste, geothermal, hydro, wind, solar), and includes data on generation capacity, actual production, ownership structures, and specific fuel types. With over 10,000 entries covering major power facilities globally, this dataset enables analysis of energy production patterns, transition to renewable sources, and environmental impact assessments. The data requires some preprocessing to harmonize reporting standards across different countries but is generally well-structured and reliable.",
-    link: "https://datasets.wri.org/dataset/globalpowerplantdatabase"
-  },
-  {
-    id: "7",
-    name: "OpenMic Multi-Instrument Recognition",
-    domain: "Computer Science",
-    description: "Dataset for researching multi-instrument recognition in polyphonic music recordings, a fundamental problem in music information retrieval.",
-    cleanliness: "Difficult",
-    sampleProject: "Develop an AI system that can identify multiple instruments playing simultaneously in complex audio recordings.",
-    types: "10-second audio snippets, VGGish features as JSON objects, aggregated labels, and track metadata.",
-    supplementalInfo: "Includes anonymized individual responses from human annotators to establish ground truth.",
-    fullDescription: "OpenMic is a specialized dataset created for addressing the challenge of multi-instrument recognition in polyphonic music recordings. It contains thousands of 10-second audio snippets, each professionally annotated for the presence of multiple instruments. The data includes raw audio files, pre-extracted VGGish audio features, aggregated instrument labels, and detailed track metadata including licensing information. This dataset is particularly valuable for developing machine learning models for audio signal processing, though it requires significant domain expertise to utilize effectively due to its complex structure and specialized audio feature representations.",
-    link: "https://github.com/cosmir/openmic-2018"
-  },
-  {
-    id: "8",
-    name: "TikTok Dance Video Dataset",
-    domain: "Computer Science",
-    description: "Frame-by-frame images of social media dance videos scraped from TikTok, including masks and dense pose information.",
-    cleanliness: "Critical",
-    sampleProject: "Create a dance move classifier or develop an AI system that can identify and categorize choreographic sequences.",
-    types: "Raw video frames, segmentation masks, dense pose images, and corresponding video links.",
-    supplementalInfo: "Includes temporal metadata for synchronization analysis.",
-    fullDescription: "This innovative dataset contains frame-by-frame extractions from TikTok dance videos, providing researchers with rich visual data for computer vision applications in human movement analysis. Each sample includes raw image frames, precisely generated segmentation masks, dense pose representations that map 2D images to 3D body models, and links to the original videos. With over 100,000 annotated frames, this dataset enables research in dance move recognition, choreographic pattern analysis, and human pose estimation. The data requires substantial preprocessing due to its multi-modal nature and the complexity of the pose information, making it suitable for advanced computer vision projects.",
-    link: "https://www.kaggle.com/datasets/amritpal333/tiktokers-dance-dataset-dance-classification"
+// Mapping for display text
+const cleanlinessDisplayText: Record<string, string> = {
+  "Excellent, ready to use": "✅ Ready to use",
+  "Great, just needs preprocessing": "✳️ Clean (minor prep)",
+  "Good, needs to be preprocessed and organized or difficult/atypical data type": "⚠️ Messy/Complex",
+  "Difficult (noisy, extremely large, significant preprocessing and/or computation)": "❌ Difficult/Noisy"
+}
+
+// Size range mapping
+const sizeRanges = {
+  "tiny": { min: 1, max: 100, label: "Very Small (1-100)" },
+  "small": { min: 101, max: 1000, label: "Small (101-1K)" },
+  "medium": { min: 1001, max: 10000, label: "Medium (1K-10K)" },
+  "large": { min: 10001, max: 100000, label: "Large (10K-100K)" },
+  "very_large": { min: 100001, max: 1000000, label: "Very Large (100K-1M)" },
+  "massive": { min: 1000000, max: Infinity, label: "Massive (1M+)" }
+}
+
+// Helper function to parse size string and get range values
+const getSizeRange = (size: string): { min: number; max: number } => {
+  if (size === "1M+") {
+    return { min: 1000000, max: Infinity };
   }
-];
+  
+  const [minStr, maxStr] = size.split("-");
+  const min = parseInt(minStr.replace(/[^0-9]/g, ""));
+  const max = parseInt(maxStr.replace(/[^0-9]/g, ""));
+  return { min, max };
+}
+
+// Helper function to check if a dataset size falls within a range
+const isInSizeRange = (datasetSize: string, range: keyof typeof sizeRanges) => {
+  const sizeRange = getSizeRange(datasetSize);
+  const targetRange = sizeRanges[range];
+  
+  // Check if the ranges overlap
+  return sizeRange.min <= targetRange.max && sizeRange.max >= targetRange.min;
+}
 
 export default function SearchPage() {
   const router = useRouter()
   const [query, setQuery] = useState("")
-  const [domain, setDomain] = useState("")
-  const [minCleanliness, setMinCleanliness] = useState(0)
-  const [results, setResults] = useState(mockDatasets)
-  const [activeTab, setActiveTab] = useState("curated")
-  const [selectedDataset, setSelectedDataset] = useState<null | typeof mockDatasets[0]>(null)
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
+  const [selectedCleanliness, setSelectedCleanliness] = useState<string | null>(null)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  const [datasets, setDatasets] = useState<Dataset[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
   
   useEffect(() => {
-    // Filter datasets based on search query (live filtering)
-    if (query) {
-      const filtered = mockDatasets.filter(dataset => 
-        dataset.name.toLowerCase().includes(query.toLowerCase()) || 
-        dataset.description.toLowerCase().includes(query.toLowerCase())
-      );
-      setResults(filtered);
-    } else {
-      setResults(mockDatasets);
+    // Load user info from localStorage
+    const userStr = localStorage.getItem('user')
+    if (!userStr) {
+      router.push('/') // Redirect to login if no user found
+      return
     }
-  }, [query]);
+    setUser(JSON.parse(userStr))
+
+    // Load datasets
+    async function fetchDatasets() {
+      try {
+        const loadedDatasets = await loadDatasets()
+        setDatasets(loadedDatasets)
+      } catch (error) {
+        console.error('Error loading datasets:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchDatasets()
+  }, [router])
+
+  // Filter datasets based on search query, selected domain, cleanliness, and size
+  const filteredDatasets = datasets.filter(dataset => {
+    const matchesQuery = query === "" || 
+      dataset.name.toLowerCase().includes(query.toLowerCase()) ||
+      dataset.description.toLowerCase().includes(query.toLowerCase())
+    
+    const matchesDomain = !selectedDomain || selectedDomain === "all" || dataset.domain === selectedDomain
+    
+    const matchesCleanliness = !selectedCleanliness || selectedCleanliness === "all" || 
+      cleanlinessDisplayText[dataset.cleanliness] === selectedCleanliness
+
+    const matchesSize = !selectedSize || selectedSize === "all" || 
+      isInSizeRange(dataset.size, selectedSize as keyof typeof sizeRanges)
+
+    return matchesQuery && matchesDomain && matchesCleanliness && matchesSize
+  })
+
+  // Get unique domains from datasets
+  const domains = Array.from(new Set(datasets.map(d => d.domain))).sort()
 
   const handleDomainChange = (value: string) => {
-    setDomain(value);
-    if (value && value !== "all") {
-      const filtered = mockDatasets.filter(dataset => 
-        dataset.domain.toLowerCase() === value.toLowerCase()
-      );
-      setResults(filtered);
-    } else {
-      setResults(mockDatasets);
-    }
+    setSelectedDomain(value === "all" ? null : value);
+  };
+
+  const handleCleanlinessChange = (value: string) => {
+    setSelectedCleanliness(value === "all" ? null : value);
+  };
+
+  const handleSizeChange = (value: string) => {
+    setSelectedSize(value === "all" ? null : value);
   };
   
-  const openDatasetModal = (dataset: typeof mockDatasets[0]) => {
+  const openDatasetModal = (dataset: Dataset) => {
     setSelectedDataset(dataset);
     setIsModalOpen(true);
   };
   
   // Generate profile initials based on user email
   const getProfileInitials = () => {
-    if (mockUser.type === "mentor") {
-      // Extract name from email (taking the part before @)
-      const emailNamePart = mockUser.email.split('@')[0];
+    if (!user) return '';
+    
+    if (user.type === 'mentor') {
+      // For mentors: Get initials from email (e.g., john.doe@example.com -> JD)
+      const name = user.email.split('@')[0];
       
-      // Split by dots, underscores, or other common separators
-      const nameParts = emailNamePart.split(/[._-]/);
+      // Try to split by common separators
+      const parts = name.split(/[._-]/);
       
-      // If we have multiple parts, take first letter of first two parts
-      if (nameParts.length > 1) {
-        return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
-      } 
-      // If single part and longer than 1 character, take first two letters
-      else if (emailNamePart.length > 1) {
-        return emailNamePart.substring(0, 2).toUpperCase();
-      }
-      // Fallback
-      else {
-        return emailNamePart[0].toUpperCase();
+      if (parts.length > 1) {
+        // If we have multiple parts (e.g., "john.doe"), use first letter of each
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      } else {
+        // For single words (e.g., "greenpan"), try to find word boundaries
+        const matches = name.match(/[A-Z]|[0-9]|\b[a-z]/g);
+        if (matches && matches.length > 1) {
+          // If we found multiple word starts, use first two
+          return (matches[0] + (matches[1] || '')).toUpperCase();
+        } else {
+          // Fallback: use first two letters
+          return name.substring(0, 2).toUpperCase();
+        }
       }
     } else {
-      // Student - first two letters of email
-      return mockUser.email.substring(0, 2).toUpperCase();
+      // For students: First two letters of email
+      return user.email.substring(0, 2).toUpperCase();
     }
-  }
+  };
   
   // Extract name from email for display purposes
   const getNameFromEmail = () => {
+    if (!user) return ''
+    
     // Extract the part before @ in the email
-    const emailName = mockUser.email.split('@')[0];
+    const emailName = user.email.split('@')[0];
     
     // Split by common separators like dots, underscores, hyphens
     const nameParts = emailName.split(/[._-]/);
@@ -489,12 +466,14 @@ export default function SearchPage() {
   }
   
   const handleLogout = () => {
-    // Handle logout functionality here
-    console.log("Logging out...")
-    // Redirect to the root page which has the student/mentor selection
+    localStorage.removeItem('user')
     router.push('/')
   }
   
+  if (!user) {
+    return null; // or a loading state
+  }
+
   return (
     <div className={`flex flex-col min-h-screen ${inter.className}`}>
       {/* Navigation Bar */}
@@ -515,20 +494,20 @@ export default function SearchPage() {
             <nav className="mr-6">
               <ul className="flex space-x-6">
                 <li>
-                  <button 
-                    className={`px-3 py-2 ${activeTab === "curated" ? "border-b-2 border-indigo-600 font-medium" : ""}`}
-                    onClick={() => setActiveTab("curated")}
+                  <Link 
+                    href="/search"
+                    className="px-3 py-2 border-b-2 border-indigo-600 font-medium"
                   >
                     Curated Datasets
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button 
-                    className={`px-3 py-2 ${activeTab === "external" ? "border-b-2 border-indigo-600 font-medium" : ""}`}
-                    onClick={() => setActiveTab("external")}
+                  <Link 
+                    href="/external"
+                    className="px-3 py-2"
                   >
                     External Databases
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </nav>
@@ -536,18 +515,16 @@ export default function SearchPage() {
             {/* Profile Button with Dropdown */}
             <Popover>
               <PopoverTrigger asChild>
-                <button className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300">
+                <button 
+                  className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-sm font-medium"
+                >
                   {getProfileInitials()}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-40 p-0">
-                <div className="px-4 py-2 border-b">
-                  <div className="font-medium">{getNameFromEmail()}</div>
-                  <div className="text-xs text-gray-500">{mockUser.email}</div>
-                </div>
+              <PopoverContent className="w-32 p-0" align="end">
                 <button 
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Log out
                 </button>
@@ -559,47 +536,102 @@ export default function SearchPage() {
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Input 
-            placeholder="Search (should be a live filter searching on Dataset Name and dataset description)" 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-            className="md:col-span-2"
-          />
-          <Select onValueChange={handleDomainChange}>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="relative md:col-span-2">
+            <Input 
+              placeholder="Search" 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              className="pr-10"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                aria-label="Clear search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            )}
+          </div>
+          <Select value={selectedDomain || "all"} onValueChange={handleDomainChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Domain (Dropdown)" />
+              <SelectValue placeholder="Domain" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Domains</SelectItem>
-              {Object.keys(domainColors).map((domainName) => (
-                <SelectItem key={domainName} value={domainName}>{domainName}</SelectItem>
+              {domains.map((domain) => (
+                <SelectItem key={domain} value={domain}>{domain}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select onValueChange={(value) => setMinCleanliness(Number(value))}>
+          <Select value={selectedCleanliness || "all"} onValueChange={handleCleanlinessChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Cleanliness (Dropdown)" />
+              <SelectValue placeholder="Data Quality" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Any</SelectItem>
-              <SelectItem value="0.9">90%+</SelectItem>
-              <SelectItem value="0.95">95%+</SelectItem>
-              <SelectItem value="0.99">99%+</SelectItem>
+              <SelectItem value="all">All Data Qualities</SelectItem>
+              <SelectItem value="✅ Ready to use">✅ Ready to use</SelectItem>
+              <SelectItem value="✳️ Clean (minor prep)">✳️ Clean (minor prep)</SelectItem>
+              <SelectItem value="⚠️ Messy/Complex">⚠️ Messy/Complex</SelectItem>
+              <SelectItem value="❌ Difficult/Noisy">❌ Difficult/Noisy</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={selectedSize || "all"} onValueChange={handleSizeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dataset Sizes</SelectItem>
+              <SelectItem value="tiny">{sizeRanges.tiny.label}</SelectItem>
+              <SelectItem value="small">{sizeRanges.small.label}</SelectItem>
+              <SelectItem value="medium">{sizeRanges.medium.label}</SelectItem>
+              <SelectItem value="large">{sizeRanges.large.label}</SelectItem>
+              <SelectItem value="very_large">{sizeRanges.very_large.label}</SelectItem>
+              <SelectItem value="massive">{sizeRanges.massive.label}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
+        <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200 my-6">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-blue-500"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <p className="text-sm text-blue-700">
+            Click on any dataset card to view more detailed information.
+          </p>
+        </div>
+        
         {/* Dataset Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {results.map((dataset) => {
+          {isLoading ? (
+            <div className="col-span-full text-center py-8">
+              Loading datasets...
+            </div>
+          ) : filteredDatasets.map((dataset) => {
             const domainConfig = domainColors[dataset.domain as keyof typeof domainColors] || domainColors.Chemistry;
-            const difficultyClass = difficultyClasses[dataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses.Medium;
+            const difficultyClass = difficultyClasses[dataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"];
             const IconComponent = domainConfig.IconComponent;
             
             return (
               <div 
-                key={dataset.id}
+                key={dataset.name}
                 className={`border rounded-lg p-4 ${domainConfig.bg} ${domainConfig.hover} cursor-pointer transition-colors duration-200 h-64 flex flex-col`}
                 onClick={() => openDatasetModal(dataset)}
               >
@@ -607,37 +639,32 @@ export default function SearchPage() {
                   <div className={`w-8 h-8 ${domainConfig.icon} rounded-full flex items-center justify-center mr-2`}>
                     <IconComponent className="h-4 w-4 text-white" />
                   </div>
-                  <h2 className="text-xl font-semibold">{dataset.name}</h2>
+                  <h2 className="text-xl font-semibold truncate">{dataset.name}</h2>
                 </div>
                 <div className="mb-2 text-sm">
                   <strong>Domain:</strong> {dataset.domain}
                 </div>
                 <div className="mb-2 text-sm">
-                <strong>Dataset Description:</strong><p className="text-gray-600 mb-4 text-sm overflow-hidden line-clamp-3">{dataset.description}</p>
+                  <strong>Dataset Description:</strong>
+                  <p className="text-gray-600 mb-4 text-sm overflow-hidden line-clamp-3">{dataset.description}</p>
                 </div>
-                <div className="mt-auto flex items-center justify-between">
+                <div className="mt-auto flex items-center justify-between flex-wrap gap-2">
                   <Button 
                     variant="default" 
-                    className={`text-xs px-3 py-1 h-auto text-white ${difficultyClass}`}
+                    className={`text-xs px-3 py-1 h-auto text-white ${difficultyClass} break-all`}
                   >
-                    {dataset.cleanliness}
+                    {cleanlinessDisplayText[dataset.cleanliness] || dataset.cleanliness}
                   </Button>
                   <a 
                     href={dataset.link} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()} // Prevent triggering the card's onClick
+                    onClick={(e) => e.stopPropagation()} 
                   >
                     <Button variant="outline" className="text-xs px-3 py-1 h-auto">
                       Link <ExternalLink className="h-4 w-4 ml-1" />
                     </Button>
                   </a>
-                  <Button variant="ghost" size="sm" className="p-0">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 15A7 7 0 108 1a7 7 0 000 14z" stroke="currentColor" />
-                      <path d="M8 11V7.5M8 5V4.5" stroke="currentColor" strokeLinecap="round" />
-                    </svg>
-                  </Button>
                 </div>
               </div>
             )
@@ -679,7 +706,9 @@ export default function SearchPage() {
                 
                 <div className="rounded-lg p-4 border">
                   <h3 className="font-semibold mb-2">Cleanliness:</h3>
-                  <p>{selectedDataset.cleanliness}</p>
+                  <p className={`inline-block px-2 py-1 rounded ${difficultyClasses[selectedDataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"]}`}>
+                    {selectedDataset.cleanliness}
+                  </p>
                 </div>
                 
                 <div className="rounded-lg p-4 border">
@@ -693,6 +722,18 @@ export default function SearchPage() {
                       Open Dataset <ExternalLink className="h-4 w-4 ml-2" />
                     </Button>
                   </a>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg p-4 border">
+                  <h3 className="font-semibold mb-2">Data Type:</h3>
+                  <p>{selectedDataset.dataType}</p>
+                </div>
+                
+                <div className="rounded-lg p-4 border">
+                  <h3 className="font-semibold mb-2">Size:</h3>
+                  <p>{selectedDataset.size}</p>
                 </div>
               </div>
               
@@ -718,11 +759,6 @@ export default function SearchPage() {
           </DialogContent>
         </Dialog>
       )}
-      
-      {/* Note at bottom of page */}
-      <div className="text-xs text-gray-500 p-2 border-t">
-        Click on any dataset card to view more detailed information.
-      </div>
     </div>
   )
 }

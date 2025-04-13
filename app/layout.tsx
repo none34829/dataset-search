@@ -25,3 +25,8 @@ export default function RootLayout({
     </html>
   )
 }
+
+// system to add email + pwd to the database (api that fetches data from the excel and adds it to db)
+// have the same colour for modal
+// external databases
+// proposal for the project

@@ -20,8 +20,33 @@ export default function SignInForm({}: LoginFormProps) {
 
   // Mock user data for demonstration
   const mockUserData = {
-    student: { email: "student@example.com", password: "studentPass" },
-    mentor: { name: "Mentor Name", email: "mentor@example.com", password: "mentorPass" },
+    student: [
+      { email: "student@example.com", password: "studentPass" },
+      { email: "ayush.chauhan@gmail.com", password: "Reynasimp@69" },
+      { email: "ayushChauhan020305@gmail.com", password: "Reynasimp@69" },
+    ],
+    mentor: [{ email: "mentor@example.com", password: "mentorPass" },
+    { email: "green_pan@gmail.com", password: "green123" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    ]
+  };
+
+  // Function to reset form data
+  const resetForm = () => {
+    setFormData({
+      identifier: "",
+      password: "",
+    });
+    setShowPassword(false);
+    setErrorMessage("");
+  };
+
+  // Update the account type change handler
+  const handleAccountTypeChange = (type: "student" | "mentor" | null) => {
+    setSelectedType(type);
+    resetForm();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,40 +59,40 @@ export default function SignInForm({}: LoginFormProps) {
       password: formData.password,
     };
 
-    // Check credentials against mock data first
-    if (selectedType === "student" && (formData.identifier === mockUserData.student.email && formData.password === mockUserData.student.password)) {
-      console.log("Student signed in successfully!");
-      router.push('/search');
-      return;
-    } else if (selectedType === "mentor" && (formData.identifier === mockUserData.mentor.email && formData.password === mockUserData.mentor.password)) {
-      console.log("Mentor signed in successfully!");
-      router.push('/search');
-      return;
-    }
-
-    // If not matched, proceed with API call
-    try {
-      const response = await fetch('/api/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...userData, type: selectedType }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log(`${selectedType} signed in successfully!`, data);
+    // Check credentials against mock data
+    if (selectedType === "student") {
+      const studentMatch = mockUserData.student.find(
+        student => student.email === userData.email && student.password === userData.password
+      );
+      
+      if (studentMatch) {
+        // Store user info in localStorage
+        localStorage.setItem('user', JSON.stringify({
+          type: 'student',
+          email: userData.email
+        }));
+        console.log("Student signed in successfully!");
         router.push('/search');
-      } else {
-        console.error("Sign-in failed:", data.message);
-        setErrorMessage(data.message);
+        return;
       }
-    } catch (error) {
-      console.error("An error occurred:", error);
-      setErrorMessage("Wrong Email or Password!");
+    } else if (selectedType === "mentor") {
+      const mentorMatch = mockUserData.mentor.find(
+        mentor => mentor.email === userData.email && mentor.password === userData.password
+      );
+      
+      if (mentorMatch) {
+        localStorage.setItem('user', JSON.stringify({
+          type: 'mentor',
+          email: userData.email
+        }));
+        console.log("Mentor signed in successfully!");
+        router.push('/search');
+        return;
+      }
     }
+
+    // If no match found, show error
+    setErrorMessage("Wrong Email or Password!");
   };
 
   return (
@@ -78,7 +103,7 @@ export default function SignInForm({}: LoginFormProps) {
           <div className="flex justify-center space-x-4">
             <div 
               className="border rounded p-4 cursor-pointer hover:border-blue-500 transition-colors text-center w-40"
-              onClick={() => setSelectedType("student")}
+              onClick={() => handleAccountTypeChange("student")}
             >
               <div className="flex justify-center mb-2">
                 <svg className="h-20 w-20 text-blue-500" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -93,7 +118,7 @@ export default function SignInForm({}: LoginFormProps) {
             </div>
             <div 
               className="border rounded p-4 cursor-pointer hover:border-purple-500 transition-colors text-center w-40"
-              onClick={() => setSelectedType("mentor")}
+              onClick={() => handleAccountTypeChange("mentor")}
             >
               <div className="flex justify-center mb-2">
                 <svg className="h-20 w-20 text-purple-500" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -120,7 +145,7 @@ export default function SignInForm({}: LoginFormProps) {
             </h2>
             <button 
               type="button" 
-              onClick={() => setSelectedType(null)} 
+              onClick={() => handleAccountTypeChange(null)} 
               className="text-sm text-blue-500 hover:underline"
             >
               Change account type
