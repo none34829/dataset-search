@@ -22,9 +22,15 @@ export default function SignInForm({}: LoginFormProps) {
   const mockUserData = {
     student: [
       { email: "student@example.com", password: "studentPass" },
-      { email: "ayushchauhan020305@gmail.com", password: "Reynasimp@69" }
+      { email: "ayush.chauhan@gmail.com", password: "Reynasimp@69" },
+      { email: "ayushChauhan020305@gmail.com", password: "Reynasimp@69" },
     ],
-    mentor: { name: "Mentor Name", email: "mentor@example.com", password: "mentorPass" },
+    mentor: [{ email: "mentor@example.com", password: "mentorPass" },
+    { email: "green_pan@gmail.com", password: "green123" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    { email: "mentor@example.com", password: "mentorPass" },
+    ]
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,17 +59,20 @@ export default function SignInForm({}: LoginFormProps) {
         router.push('/search');
         return;
       }
-    } else if (selectedType === "mentor" && 
-               userData.email === mockUserData.mentor.email && 
-               userData.password === mockUserData.mentor.password) {
-      // Store user info in localStorage
-      localStorage.setItem('user', JSON.stringify({
-        type: 'mentor',
-        email: userData.email
-      }));
-      console.log("Mentor signed in successfully!");
-      router.push('/search');
-      return;
+    } else if (selectedType === "mentor") {
+      const mentorMatch = mockUserData.mentor.find(
+        mentor => mentor.email === userData.email && mentor.password === userData.password
+      );
+      
+      if (mentorMatch) {
+        localStorage.setItem('user', JSON.stringify({
+          type: 'mentor',
+          email: userData.email
+        }));
+        console.log("Mentor signed in successfully!");
+        router.push('/search');
+        return;
+      }
     }
 
     // If no match found, show error

@@ -411,10 +411,24 @@ export default function SearchPage() {
     if (user.type === 'mentor') {
       // For mentors: Get initials from email (e.g., john.doe@example.com -> JD)
       const name = user.email.split('@')[0];
-      const parts = name.split(/[._]/);
-      return parts.length > 1 
-        ? (parts[0][0] + parts[1][0]).toUpperCase()
-        : name.substring(0, 2).toUpperCase();
+      
+      // Try to split by common separators
+      const parts = name.split(/[._-]/);
+      
+      if (parts.length > 1) {
+        // If we have multiple parts (e.g., "john.doe"), use first letter of each
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      } else {
+        // For single words (e.g., "greenpan"), try to find word boundaries
+        const matches = name.match(/[A-Z]|[0-9]|\b[a-z]/g);
+        if (matches && matches.length > 1) {
+          // If we found multiple word starts, use first two
+          return (matches[0] + (matches[1] || '')).toUpperCase();
+        } else {
+          // Fallback: use first two letters
+          return name.substring(0, 2).toUpperCase();
+        }
+      }
     } else {
       // For students: First two letters of email
       return user.email.substring(0, 2).toUpperCase();
