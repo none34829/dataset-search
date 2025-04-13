@@ -33,6 +33,22 @@ export default function SignInForm({}: LoginFormProps) {
     ]
   };
 
+  // Function to reset form data
+  const resetForm = () => {
+    setFormData({
+      identifier: "",
+      password: "",
+    });
+    setShowPassword(false);
+    setErrorMessage("");
+  };
+
+  // Update the account type change handler
+  const handleAccountTypeChange = (type: "student" | "mentor" | null) => {
+    setSelectedType(type);
+    resetForm();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -87,7 +103,7 @@ export default function SignInForm({}: LoginFormProps) {
           <div className="flex justify-center space-x-4">
             <div 
               className="border rounded p-4 cursor-pointer hover:border-blue-500 transition-colors text-center w-40"
-              onClick={() => setSelectedType("student")}
+              onClick={() => handleAccountTypeChange("student")}
             >
               <div className="flex justify-center mb-2">
                 <svg className="h-20 w-20 text-blue-500" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -102,7 +118,7 @@ export default function SignInForm({}: LoginFormProps) {
             </div>
             <div 
               className="border rounded p-4 cursor-pointer hover:border-purple-500 transition-colors text-center w-40"
-              onClick={() => setSelectedType("mentor")}
+              onClick={() => handleAccountTypeChange("mentor")}
             >
               <div className="flex justify-center mb-2">
                 <svg className="h-20 w-20 text-purple-500" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -129,7 +145,7 @@ export default function SignInForm({}: LoginFormProps) {
             </h2>
             <button 
               type="button" 
-              onClick={() => setSelectedType(null)} 
+              onClick={() => handleAccountTypeChange(null)} 
               className="text-sm text-blue-500 hover:underline"
             >
               Change account type

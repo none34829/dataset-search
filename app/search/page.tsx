@@ -314,10 +314,33 @@ const cleanlinessDisplayText: Record<string, string> = {
 
 // Size range mapping
 const sizeRanges = {
-  "small": { min: 0, max: 1000, label: "Small (< 1K)" },
+  "tiny": { min: 1, max: 100, label: "Very Small (1-100)" },
+  "small": { min: 101, max: 1000, label: "Small (101-1K)" },
   "medium": { min: 1001, max: 10000, label: "Medium (1K-10K)" },
   "large": { min: 10001, max: 100000, label: "Large (10K-100K)" },
-  "very_large": { min: 100001, max: Infinity, label: "Very Large (> 100K)" }
+  "very_large": { min: 100001, max: 1000000, label: "Very Large (100K-1M)" },
+  "massive": { min: 1000000, max: Infinity, label: "Massive (1M+)" }
+}
+
+// Helper function to parse size string and get range values
+const getSizeRange = (size: string): { min: number; max: number } => {
+  if (size === "1M+") {
+    return { min: 1000000, max: Infinity };
+  }
+  
+  const [minStr, maxStr] = size.split("-");
+  const min = parseInt(minStr.replace(/[^0-9]/g, ""));
+  const max = parseInt(maxStr.replace(/[^0-9]/g, ""));
+  return { min, max };
+}
+
+// Helper function to check if a dataset size falls within a range
+const isInSizeRange = (datasetSize: string, range: keyof typeof sizeRanges) => {
+  const sizeRange = getSizeRange(datasetSize);
+  const targetRange = sizeRanges[range];
+  
+  // Check if the ranges overlap
+  return sizeRange.min <= targetRange.max && sizeRange.max >= targetRange.min;
 }
 
 export default function SearchPage() {
@@ -354,18 +377,6 @@ export default function SearchPage() {
     }
     fetchDatasets()
   }, [router])
-
-  // Helper function to parse size string and get numeric value
-  const getSizeValue = (size: string): number => {
-    const numericPart = size.match(/\d+/);
-    return numericPart ? parseInt(numericPart[0]) : 0;
-  }
-
-  // Helper function to check if a dataset size falls within a range
-  const isInSizeRange = (datasetSize: string, range: keyof typeof sizeRanges) => {
-    const sizeValue = getSizeValue(datasetSize);
-    return sizeValue >= sizeRanges[range].min && sizeValue <= sizeRanges[range].max;
-  }
 
   // Filter datasets based on search query, selected domain, cleanliness, and size
   const filteredDatasets = datasets.filter(dataset => {
@@ -573,11 +584,13 @@ export default function SearchPage() {
               <SelectValue placeholder="Size" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Data Sizes</SelectItem>
+              <SelectItem value="all">All Dataset Sizes</SelectItem>
+              <SelectItem value="tiny">{sizeRanges.tiny.label}</SelectItem>
               <SelectItem value="small">{sizeRanges.small.label}</SelectItem>
               <SelectItem value="medium">{sizeRanges.medium.label}</SelectItem>
               <SelectItem value="large">{sizeRanges.large.label}</SelectItem>
               <SelectItem value="very_large">{sizeRanges.very_large.label}</SelectItem>
+              <SelectItem value="massive">{sizeRanges.massive.label}</SelectItem>
             </SelectContent>
           </Select>
         </div>
