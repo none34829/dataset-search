@@ -494,19 +494,20 @@ export default function SearchPage() {
             <nav className="mr-6">
               <ul className="flex space-x-6">
                 <li>
-                  <button 
-                    className={`px-3 py-2 ${!selectedDomain ? "border-b-2 border-indigo-600 font-medium" : ""}`}
-                    onClick={() => setSelectedDomain(null)}
+                  <Link 
+                    href="/search"
+                    className="px-3 py-2 border-b-2 border-indigo-600 font-medium"
                   >
                     Curated Datasets
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button 
+                  <Link 
+                    href="/external"
                     className="px-3 py-2"
                   >
                     External Databases
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </nav>
@@ -593,6 +594,28 @@ export default function SearchPage() {
               <SelectItem value="massive">{sizeRanges.massive.label}</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200 my-6">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-blue-500"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          <p className="text-sm text-blue-700">
+            Click on any dataset card to view more detailed information.
+          </p>
         </div>
         
         {/* Dataset Cards Grid */}
@@ -736,11 +759,6 @@ export default function SearchPage() {
           </DialogContent>
         </Dialog>
       )}
-      
-      {/* Note at bottom of page */}
-      <div className="text-xs text-gray-500 p-2 border-t">
-        Click on any dataset card to view more detailed information.
-      </div>
     </div>
   )
 }
