@@ -126,11 +126,16 @@ export default function ExternalDatabasesPage() {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-4">
             <div className="flex justify-center">
-              <img 
-                src="/updated+logo+3.15.24-2.png" 
-                alt="INSPIRIT AI Logo" 
-                className="h-13 w-48 mr-2"
-              />
+              <Link 
+                href="/search"
+                className="cursor-pointer"
+              >
+                <img 
+                  src="/updated+logo+3.15.24-2.png" 
+                  alt="INSPIRIT AI Logo" 
+                  className="h-13 w-48 mr-2"
+                />
+              </Link>
             </div>
             <h1 className="ml-8 text-xl font-semibold">Dataset Search Tool</h1>
           </div>

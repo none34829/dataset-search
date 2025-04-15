@@ -345,8 +345,8 @@ const isInSizeRange = (datasetSize: string, range: keyof typeof sizeRanges) => {
 
 export default function SearchPage() {
   const router = useRouter()
-  const [query, setQuery] = useState("")
-  const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
+  const [selectedPrimaryDomain, setSelectedPrimaryDomain] = useState<string | null>(null)
+  const [selectedSecondaryDomain, setSelectedSecondaryDomain] = useState<string | null>(null)
   const [selectedCleanliness, setSelectedCleanliness] = useState<string | null>(null)
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
   const [datasets, setDatasets] = useState<Dataset[]>([])
@@ -354,6 +354,12 @@ export default function SearchPage() {
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<User | null>(null)
+  
+  // New state to track if filters have been applied
+  const filtersApplied = selectedPrimaryDomain !== null || 
+                       selectedSecondaryDomain !== null || 
+                       selectedCleanliness !== null || 
+                       selectedSize !== null
   
   useEffect(() => {
     // Load user info from localStorage
@@ -378,28 +384,77 @@ export default function SearchPage() {
     fetchDatasets()
   }, [router])
 
-  // Filter datasets based on search query, selected domain, cleanliness, and size
+  // Filter datasets based on selected domains, cleanliness, and size
   const filteredDatasets = datasets.filter(dataset => {
-    const matchesQuery = query === "" || 
-      dataset.name.toLowerCase().includes(query.toLowerCase()) ||
-      dataset.description.toLowerCase().includes(query.toLowerCase())
+    // Split the dataset domain by commas to get all domains in this dataset
+    const datasetDomains = dataset.domain.split(/,\s*/).map(d => d.trim());
     
-    const matchesDomain = !selectedDomain || selectedDomain === "all" || dataset.domain === selectedDomain
+    // Check if the primary domain matches any of the dataset domains
+    const matchesPrimaryDomain = !selectedPrimaryDomain || selectedPrimaryDomain === "all" || 
+      datasetDomains.some(d => d === selectedPrimaryDomain);
+    
+    // If secondary domain is selected, check if it matches any of the dataset domains
+    const matchesSecondaryDomain = !selectedSecondaryDomain || selectedSecondaryDomain === "all" || 
+      datasetDomains.some(d => d === selectedSecondaryDomain);
     
     const matchesCleanliness = !selectedCleanliness || selectedCleanliness === "all" || 
-      cleanlinessDisplayText[dataset.cleanliness] === selectedCleanliness
+      cleanlinessDisplayText[dataset.cleanliness] === selectedCleanliness;
 
     const matchesSize = !selectedSize || selectedSize === "all" || 
-      isInSizeRange(dataset.size, selectedSize as keyof typeof sizeRanges)
+      isInSizeRange(dataset.size, selectedSize as keyof typeof sizeRanges);
 
-    return matchesQuery && matchesDomain && matchesCleanliness && matchesSize
+    return matchesPrimaryDomain && matchesSecondaryDomain && matchesCleanliness && matchesSize;
   })
 
-  // Get unique domains from datasets
-  const domains = Array.from(new Set(datasets.map(d => d.domain))).sort()
+  // Get unique domains from datasets - extract all single domains for the filters
+  const allDomains = Array.from(new Set(
+    datasets.flatMap(d => {
+      // Split domain string only by commas, not by ampersands
+      // This ensures "Arts & Culture" stays as one domain but "Engineering, Education" becomes two
+      return d.domain.split(/,\s*/).map(domain => domain.trim());
+    })
+  )).sort();
 
-  const handleDomainChange = (value: string) => {
-    setSelectedDomain(value === "all" ? null : value);
+  // Get unique cleanliness values and sizes from datasets matching the domain filters
+  const domainsFilteredDatasets = datasets.filter(dataset => {
+    // Split the dataset domain by commas to get all domains
+    const datasetDomains = dataset.domain.split(/,\s*/).map(d => d.trim());
+    
+    // Check primary domain if selected
+    const matchesPrimaryDomain = !selectedPrimaryDomain || selectedPrimaryDomain === "all" || 
+      datasetDomains.some(d => d === selectedPrimaryDomain);
+      
+    // Check secondary domain if selected
+    const matchesSecondaryDomain = !selectedSecondaryDomain || selectedSecondaryDomain === "all" || 
+      datasetDomains.some(d => d === selectedSecondaryDomain);
+    
+    // Return true if both domain conditions are met
+    return matchesPrimaryDomain && matchesSecondaryDomain;
+  });
+  
+  const availableCleanliness = Array.from(new Set(domainsFilteredDatasets.map(d => cleanlinessDisplayText[d.cleanliness]))).sort();
+  const availableSizes = Array.from(new Set(
+    domainsFilteredDatasets.map(d => {
+      // Determine which size category this dataset belongs to
+      for (const [key, range] of Object.entries(sizeRanges)) {
+        if (isInSizeRange(d.size, key as keyof typeof sizeRanges)) {
+          return key;
+        }
+      }
+      return null;
+    }).filter(Boolean) // Remove null values
+  )) as string[];
+
+  const handlePrimaryDomainChange = (value: string) => {
+    setSelectedPrimaryDomain(value === "all" ? null : value);
+    // Reset secondary domain, cleanliness and size when primary domain changes
+    setSelectedSecondaryDomain(null);
+    setSelectedCleanliness(null);
+    setSelectedSize(null);
+  };
+
+  const handleSecondaryDomainChange = (value: string) => {
+    setSelectedSecondaryDomain(value === "all" ? null : value);
   };
 
   const handleCleanlinessChange = (value: string) => {
@@ -474,6 +529,11 @@ export default function SearchPage() {
     return null; // or a loading state
   }
 
+  // Get datasets to display, limited to 8 if no filters applied
+  const datasetsToDisplay = filtersApplied 
+    ? filteredDatasets 
+    : filteredDatasets.slice(0, 8);
+
   return (
     <div className={`flex flex-col min-h-screen ${inter.className}`}>
       {/* Navigation Bar */}
@@ -481,11 +541,23 @@ export default function SearchPage() {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-4">
             <div className="flex justify-center">
-              <img 
-                src="/updated+logo+3.15.24-2.png" 
-                alt="INSPIRIT AI Logo" 
-                className="h-13 w-48 mr-2"
-              />
+              <Link 
+                href="/search"
+                onClick={() => {
+                  // Reset all filters
+                  setSelectedPrimaryDomain(null);
+                  setSelectedSecondaryDomain(null);
+                  setSelectedCleanliness(null);
+                  setSelectedSize(null);
+                }}
+                className="cursor-pointer"
+              >
+                <img 
+                  src="/updated+logo+3.15.24-2.png" 
+                  alt="INSPIRIT AI Logo" 
+                  className="h-13 w-48 mr-2"
+                />
+              </Link>
             </div>
             <h1 className="ml-8 text-xl font-semibold">Dataset Search Tool</h1>
           </div>
@@ -536,62 +608,67 @@ export default function SearchPage() {
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="relative md:col-span-2">
-          <Input 
-              placeholder="Search" 
-            value={query} 
-            onChange={(e) => setQuery(e.target.value)} 
-              className="pr-10"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                aria-label="Clear search"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            )}
-          </div>
-          <Select value={selectedDomain || "all"} onValueChange={handleDomainChange}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Select value={selectedPrimaryDomain || "all"} onValueChange={handlePrimaryDomainChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Domain" />
+              <SelectValue placeholder="Primary Domain" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Domains</SelectItem>
-              {domains.map((domain) => (
+              {allDomains.map((domain) => (
                 <SelectItem key={domain} value={domain}>{domain}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select value={selectedCleanliness || "all"} onValueChange={handleCleanlinessChange}>
+          
+          <Select 
+            value={selectedSecondaryDomain || "all"} 
+            onValueChange={handleSecondaryDomainChange}
+            disabled={!selectedPrimaryDomain || selectedPrimaryDomain === "all"}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Secondary Domain (Optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Secondary Domain (optional)</SelectItem>
+              {allDomains
+                .filter(domain => domain !== selectedPrimaryDomain)
+                .map((domain) => (
+                  <SelectItem key={domain} value={domain}>{domain}</SelectItem>
+                ))
+              }
+            </SelectContent>
+          </Select>
+          
+          <Select 
+            value={selectedCleanliness || "all"} 
+            onValueChange={handleCleanlinessChange}
+            disabled={!selectedPrimaryDomain || selectedPrimaryDomain === "all"}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Data Quality" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Data Qualities</SelectItem>
-              <SelectItem value="✅ Ready to use">✅ Ready to use</SelectItem>
-              <SelectItem value="✳️ Clean (minor prep)">✳️ Clean (minor prep)</SelectItem>
-              <SelectItem value="⚠️ Messy/Complex">⚠️ Messy/Complex</SelectItem>
-              <SelectItem value="❌ Difficult/Noisy">❌ Difficult/Noisy</SelectItem>
+              {availableCleanliness.map(quality => (
+                <SelectItem key={quality} value={quality}>{quality}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <Select value={selectedSize || "all"} onValueChange={handleSizeChange}>
+          
+          <Select 
+            value={selectedSize || "all"} 
+            onValueChange={handleSizeChange}
+            disabled={!selectedPrimaryDomain || selectedPrimaryDomain === "all"}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Size" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Dataset Sizes</SelectItem>
-              <SelectItem value="tiny">{sizeRanges.tiny.label}</SelectItem>
-              <SelectItem value="small">{sizeRanges.small.label}</SelectItem>
-              <SelectItem value="medium">{sizeRanges.medium.label}</SelectItem>
-              <SelectItem value="large">{sizeRanges.large.label}</SelectItem>
-              <SelectItem value="very_large">{sizeRanges.very_large.label}</SelectItem>
-              <SelectItem value="massive">{sizeRanges.massive.label}</SelectItem>
+              {availableSizes.map(size => (
+                <SelectItem key={size} value={size}>{sizeRanges[size as keyof typeof sizeRanges].label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -624,7 +701,7 @@ export default function SearchPage() {
             <div className="col-span-full text-center py-8">
               Loading datasets...
             </div>
-          ) : filteredDatasets.map((dataset) => {
+          ) : datasetsToDisplay.length > 0 ? datasetsToDisplay.map((dataset) => {
             const domainConfig = domainColors[dataset.domain as keyof typeof domainColors] || domainColors.Chemistry;
             const difficultyClass = difficultyClasses[dataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"];
             const IconComponent = domainConfig.IconComponent;
@@ -668,51 +745,62 @@ export default function SearchPage() {
                 </div>
               </div>
             )
-          })}
+          }) : (
+            <div className="col-span-full text-center py-8">
+              No datasets match your filters. Try adjusting your search criteria.
+            </div>
+          )}
+          
+          {!filtersApplied && datasetsToDisplay.length > 0 && (
+            <div className="col-span-full text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-gray-600 mb-2">Showing {datasetsToDisplay.length} of {filteredDatasets.length} datasets</p>
+              <p className="text-sm text-gray-500">Select filters above to explore more datasets</p>
+            </div>
+          )}
         </div>
       </main>
       
       {/* Dataset Detail Modal */}
       {selectedDataset && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className={`max-w-4xl max-h-[90vh] overflow-y-auto ${inter.className}`}>
+            <DialogHeader className="pb-4 border-b">
               <DialogTitle className="text-2xl font-bold flex items-center">
                 {/* Display the domain icon in the modal header */}
                 {(() => {
                   const domainConfig = domainColors[selectedDataset.domain as keyof typeof domainColors] || domainColors.Chemistry;
                   const IconComponent = domainConfig.IconComponent;
                   return (
-                    <div className={`w-8 h-8 ${domainConfig.icon} rounded-full flex items-center justify-center mr-3`}>
-                      <IconComponent className="h-4 w-4 text-white" />
+                    <div className={`w-10 h-10 ${domainConfig.icon} rounded-full flex items-center justify-center mr-4`}>
+                      <IconComponent className="h-5 w-5 text-white" />
                     </div>
                   );
                 })()}
-                {selectedDataset.name}
+                <span className="text-2xl font-bold tracking-tight">{selectedDataset.name}</span>
               </DialogTitle>
             </DialogHeader>
             
-            <div className="grid grid-cols-1 gap-4 py-4">
+            <div className="grid grid-cols-1 gap-4 py-6">
               <div className="rounded-lg p-4 border">
-                <h3 className="font-semibold mb-2">Dataset Description:</h3>
-                <p>{selectedDataset.description || selectedDataset.description}</p>
+                <h3 className="font-semibold text-base mb-2 text-gray-700">Dataset Description:</h3>
+                <p className="text-gray-800">{selectedDataset.description || selectedDataset.description}</p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="rounded-lg p-4 border">
-                  <h3 className="font-semibold mb-2">Domain:</h3>
-                  <p>{selectedDataset.domain}</p>
+                  <h3 className="font-semibold text-base mb-2 text-gray-700">Domain:</h3>
+                  <p className="text-gray-800">{selectedDataset.domain}</p>
                 </div>
                 
                 <div className="rounded-lg p-4 border">
-                  <h3 className="font-semibold mb-2">Cleanliness:</h3>
-                  <p className={`inline-block px-2 py-1 rounded ${difficultyClasses[selectedDataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"]}`}>
+                  <h3 className="font-semibold text-base mb-2 text-gray-700">Cleanliness:</h3>
+                  <p className={`inline-block px-3 py-1 rounded ${difficultyClasses[selectedDataset.cleanliness as keyof typeof difficultyClasses] || difficultyClasses["⚠️ Messy/Complex"]}`}>
                     {selectedDataset.cleanliness}
                   </p>
                 </div>
                 
                 <div className="rounded-lg p-4 border">
-                  <h3 className="font-semibold mb-2">Link:</h3>
+                  <h3 className="font-semibold text-base mb-2 text-gray-700">Link:</h3>
                   <a 
                     href={selectedDataset.link} 
                     target="_blank" 
@@ -726,35 +814,70 @@ export default function SearchPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-lg p-4 border">
-                  <h3 className="font-semibold mb-2">Data Type:</h3>
-                  <p>{selectedDataset.dataType}</p>
-                </div>
+                {selectedDataset.dataType && (() => {
+                  // Helper function to check if content is empty
+                  const hasContent = (value: any): boolean => {
+                    if (typeof value === 'string') return value.trim() !== '';
+                    if (Array.isArray(value)) return value.length > 0;
+                    return false;
+                  };
+                  
+                  return hasContent(selectedDataset.dataType) && (
+                    <div className="rounded-lg p-4 border">
+                      <h3 className="font-semibold text-base mb-2 text-gray-700">Data Type:</h3>
+                      <p className="text-gray-800">{selectedDataset.dataType}</p>
+                    </div>
+                  );
+                })()}
                 
+                {selectedDataset.size && selectedDataset.size.trim() && (
+                  <div className="rounded-lg p-4 border">
+                    <h3 className="font-semibold text-base mb-2 text-gray-700">Size:</h3>
+                    <p className="text-gray-800">{selectedDataset.size}</p>
+                  </div>
+                )}
+              </div>
+              
+              {selectedDataset.sampleProject && selectedDataset.sampleProject.trim() && (
                 <div className="rounded-lg p-4 border">
-                  <h3 className="font-semibold mb-2">Size:</h3>
-                  <p>{selectedDataset.size}</p>
+                  <h3 className="font-semibold text-base mb-2 text-gray-700">Sample Project Ideas:</h3>
+                  <p className="text-gray-800">{selectedDataset.sampleProject}</p>
                 </div>
-              </div>
+              )}
               
-              <div className="rounded-lg p-4 border">
-                <h3 className="font-semibold mb-2">Sample Project Ideas:</h3>
-                <p>{selectedDataset.sampleProject}</p>
-              </div>
+              {/* Types of Models section */}
+              {selectedDataset.types && (() => {
+                // Helper function to check if content is empty
+                const hasContent = (value: any): boolean => {
+                  if (typeof value === 'string') return value.trim() !== '';
+                  if (Array.isArray(value)) return value.length > 0;
+                  return false;
+                };
+                
+                return hasContent(selectedDataset.types) && (
+                  <div className="rounded-lg p-4 border">
+                    <h3 className="font-semibold text-base mb-2 text-gray-700">Types of Models:</h3>
+                    <p className="text-gray-800">
+                      {typeof selectedDataset.types === 'string' 
+                        ? selectedDataset.types 
+                        : Array.isArray(selectedDataset.types) 
+                          ? selectedDataset.types.join(', ') 
+                          : ''}
+                    </p>
+                  </div>
+                );
+              })()}
               
-              <div className="rounded-lg p-4 border">
-                <h3 className="font-semibold mb-2">Types of Models:</h3>
-                <p>{selectedDataset.types}</p>
-              </div>
-              
-              <div className="rounded-lg p-4 border">
-                <h3 className="font-semibold mb-2">Supplemental Information:</h3>
-                <p>{selectedDataset.supplementalInfo}</p>
-              </div>
+              {selectedDataset.supplementalInfo && selectedDataset.supplementalInfo.trim() && (
+                <div className="rounded-lg p-4 border">
+                  <h3 className="font-semibold text-base mb-2 text-gray-700">Supplemental Information:</h3>
+                  <p className="text-gray-800">{selectedDataset.supplementalInfo}</p>
+                </div>
+              )}
             </div>
             
-            <div className="flex justify-end">
-              <Button onClick={() => setIsModalOpen(false)}>Close</Button>
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => setIsModalOpen(false)} className="px-6">Close</Button>
             </div>
           </DialogContent>
         </Dialog>
