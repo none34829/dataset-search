@@ -1,10 +1,8 @@
 import { google } from 'googleapis';
-import path from 'path';
-import fs from 'fs';
 
 // Constants
-const SPREADSHEET_ID = '1fkXcAsoZUIpu56XjyKQv2S5OTboYhVhwttGQCCadiFo';
-const SHEET_NAME = 'Sheet1'; // Changed from 'Students' to 'Sheet1'
+const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '1fkXcAsoZUIpu56XjyKQv2S5OTboYhVhwttGQCCadiFo';
+const SHEET_NAME = process.env.GOOGLE_SHEETS_TAB || 'Sheet1';
 let cachedStudents: { email: string; password: string }[] = [];
 let lastFetchTime = 0;
 const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
@@ -12,8 +10,9 @@ const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
 // Initialize the Google Sheets API
 async function getAuthClient() {
   try {
-    const credentialsPath = path.join(process.cwd(), 'app/api/auth/sheets-credentials.json');
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+    const credentials = process.env.GOOGLE_SHEETS_CREDENTIALS 
+      ? JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS)
+      : {};
     
     const auth = new google.auth.GoogleAuth({
       credentials,
