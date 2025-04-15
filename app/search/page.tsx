@@ -526,7 +526,7 @@ export default function SearchPage() {
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
-                  Log out
+                  Log Out
                 </button>
               </PopoverContent>
             </Popover>
@@ -538,10 +538,10 @@ export default function SearchPage() {
       <main className="container mx-auto px-4 py-8 flex-grow">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div className="relative md:col-span-2">
-            <Input 
+          <Input 
               placeholder="Search" 
-              value={query} 
-              onChange={(e) => setQuery(e.target.value)} 
+            value={query} 
+            onChange={(e) => setQuery(e.target.value)} 
               className="pr-10"
             />
             {query && (
