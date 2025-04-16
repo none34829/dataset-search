@@ -1,11 +1,21 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from 'next/navigation';
 
 interface LoginFormProps {
   // No props needed as type will be selected within the component
+}
+
+interface Student {
+  email: string;
+  password: string;
+}
+
+interface Mentor {
+  email: string;
+  password: string;
 }
 
 export default function SignInForm({}: LoginFormProps) {
@@ -17,20 +27,46 @@ export default function SignInForm({}: LoginFormProps) {
     password: "",
   });
   const [errorMessage, setErrorMessage] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock user data for demonstration
+  // Mock user data for mentors only - students come from Google Sheet
   const mockUserData = {
-    student: [
-      { email: "student@example.com", password: "studentPass" },
-      { email: "ayush.chauhan@gmail.com", password: "Reynasimp@69" },
-      { email: "ayushChauhan020305@gmail.com", password: "Reynasimp@69" },
-    ],
-    mentor: [{ email: "mentor@example.com", password: "mentorPass" },
-    { email: "green_pan@gmail.com", password: "green123" },
-    { email: "mentor@example.com", password: "mentorPass" },
-    { email: "mentor@example.com", password: "mentorPass" },
-    { email: "mentor@example.com", password: "mentorPass" },
+    mentor: [
+      { email: "mentor@example.com", password: "mentorPass" },
+      { email: "green_pan@gmail.com", password: "green123" },
+      { email: "mentor@example.com", password: "mentorPass" },
+      { email: "mentor@example.com", password: "mentorPass" },
+      { email: "mentor@example.com", password: "mentorPass" },
     ]
+  };
+
+  // Fetch students data from API when student type is selected
+  useEffect(() => {
+    if (selectedType === "student") {
+      fetchStudents();
+    }
+  }, [selectedType]);
+
+  // Function to fetch students from our API
+  const fetchStudents = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/students');
+      const result = await response.json();
+      
+      if (result.success) {
+        setStudents(result.data);
+      } else {
+        console.error("Failed to fetch students:", result.error);
+        setErrorMessage("Error loading student data. Please try again later.");
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      setErrorMessage("Error connecting to server. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Function to reset form data
@@ -59,9 +95,9 @@ export default function SignInForm({}: LoginFormProps) {
       password: formData.password,
     };
 
-    // Check credentials against mock data
+    // Check credentials against appropriate data source
     if (selectedType === "student") {
-      const studentMatch = mockUserData.student.find(
+      const studentMatch = students.find(
         student => student.email === userData.email && student.password === userData.password
       );
       
