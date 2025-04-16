@@ -91,15 +91,20 @@ export default function SignInForm({}: LoginFormProps) {
     if (!selectedType) return;
 
     const userData = {
-      email: formData.identifier,
+      email: formData.identifier.trim(),
       password: formData.password,
     };
 
     // Check credentials against appropriate data source
     if (selectedType === "student") {
-      const studentMatch = students.find(
-        student => student.email === userData.email && student.password === userData.password
-      );
+      // Find a student match by checking each student record
+      const studentMatch = students.find(student => {
+        // Handle multiple emails in a single cell separated by commas
+        const emails = student.email.split(/,\s*/).map(email => email.trim());
+        // Check if the entered email matches any of the emails in this record
+        // and if the password matches
+        return emails.includes(userData.email) && student.password === userData.password;
+      });
       
       if (studentMatch) {
         // Store user info in localStorage
