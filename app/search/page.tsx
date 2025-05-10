@@ -415,6 +415,31 @@ export default function SearchPage() {
     })
   )).sort();
 
+  // Get available secondary domains that are paired with the selected primary domain
+  const getAvailableSecondaryDomains = (primaryDomain: string | null) => {
+    if (!primaryDomain || primaryDomain === "all") return allDomains;
+    
+    // Find all datasets that include the primary domain
+    const relevantDatasets = datasets.filter(dataset => {
+      const datasetDomains = dataset.domain.split(/,\s*/).map(d => d.trim());
+      return datasetDomains.some(d => d === primaryDomain);
+    });
+    
+    // Extract all domains that appear with the primary domain in these datasets
+    const secondaryDomains = Array.from(new Set(
+      relevantDatasets.flatMap(dataset => {
+        const datasetDomains = dataset.domain.split(/,\s*/).map(d => d.trim());
+        // Filter out the primary domain itself
+        return datasetDomains.filter(d => d !== primaryDomain);
+      })
+    )).sort();
+    
+    return secondaryDomains;
+  };
+  
+  // Get available secondary domains based on current primary selection
+  const availableSecondaryDomains = getAvailableSecondaryDomains(selectedPrimaryDomain);
+
   // Get unique cleanliness values and sizes from datasets matching the domain filters
   const domainsFilteredDatasets = datasets.filter(dataset => {
     // Split the dataset domain by commas to get all domains
@@ -631,12 +656,9 @@ export default function SearchPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Secondary Domain (optional)</SelectItem>
-              {allDomains
-                .filter(domain => domain !== selectedPrimaryDomain)
-                .map((domain) => (
-                  <SelectItem key={domain} value={domain}>{domain}</SelectItem>
-                ))
-              }
+              {availableSecondaryDomains.map((domain) => (
+                <SelectItem key={domain} value={domain}>{domain}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           
@@ -753,7 +775,6 @@ export default function SearchPage() {
           
           {!filtersApplied && datasetsToDisplay.length > 0 && (
             <div className="col-span-full text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-gray-600 mb-2">Showing {datasetsToDisplay.length} of {filteredDatasets.length} datasets</p>
               <p className="text-sm text-gray-500">Select filters above to explore more datasets</p>
             </div>
           )}
