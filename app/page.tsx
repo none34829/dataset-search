@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import SignInForm from '@/components/SignInForm';
+import DynamicDropdown from '@/components/ui/DynamicDropdown';
 import { Inter } from 'next/font/google';
 // Initialize the Inter font
 const inter = Inter({
