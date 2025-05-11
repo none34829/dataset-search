@@ -618,7 +618,7 @@ export default function SearchPage() {
                   {getProfileInitials()}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-32 p-0" align="end">
+              <PopoverContent className={`w-32 p-0 ${inter.className}`} align="end">
                 <button 
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
@@ -638,7 +638,7 @@ export default function SearchPage() {
             <SelectTrigger>
               <SelectValue placeholder="Primary Domain" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={inter.className}>
               <SelectItem value="all">All Domains</SelectItem>
               {allDomains.map((domain) => (
                 <SelectItem key={domain} value={domain}>{domain}</SelectItem>
@@ -654,7 +654,7 @@ export default function SearchPage() {
             <SelectTrigger>
               <SelectValue placeholder="Secondary Domain (Optional)" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={inter.className}>
               <SelectItem value="all">Secondary Domain (optional)</SelectItem>
               {availableSecondaryDomains.map((domain) => (
                 <SelectItem key={domain} value={domain}>{domain}</SelectItem>
@@ -670,7 +670,7 @@ export default function SearchPage() {
             <SelectTrigger>
               <SelectValue placeholder="Data Quality" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={inter.className}>
               <SelectItem value="all">All Data Qualities</SelectItem>
               {availableCleanliness.map(quality => (
                 <SelectItem key={quality} value={quality}>{quality}</SelectItem>
@@ -686,7 +686,7 @@ export default function SearchPage() {
             <SelectTrigger>
               <SelectValue placeholder="Size" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={inter.className}>
               <SelectItem value="all">All Dataset Sizes</SelectItem>
               {availableSizes.map(size => (
                 <SelectItem key={size} value={size}>{sizeRanges[size as keyof typeof sizeRanges].label}</SelectItem>

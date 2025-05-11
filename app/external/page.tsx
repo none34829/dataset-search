@@ -171,7 +171,7 @@ export default function ExternalDatabasesPage() {
                   {getProfileInitials()}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-32 p-0" align="end">
+              <PopoverContent className={`w-32 p-0 ${inter.className}`} align="end">
                 <button 
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
@@ -199,7 +199,7 @@ export default function ExternalDatabasesPage() {
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={inter.className}>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories
                   .filter(category => category && category.trim() !== '')
