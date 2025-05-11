@@ -286,49 +286,61 @@ export default function ExternalDatabasesPage() {
       {/* Database Detail Modal */}
       {selectedDatabase && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className={`max-w-4xl max-h-[90vh] overflow-y-auto ${inter.className}`}>
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold mb-4">
                 {selectedDatabase.provider}
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-1">Description</h4>
-                <p className="text-gray-600">{selectedDatabase.description}</p>
+            <div className="grid grid-cols-1 gap-4 py-2">
+              <div className="rounded-lg p-4 border">
+                <h4 className="font-semibold text-base mb-2 text-gray-700">Description</h4>
+                <p className="text-gray-800">{selectedDatabase.description}</p>
               </div>
-              <div>
-                <h4 className="font-semibold mb-1">Category</h4>
-                <span className={`px-2 py-1 rounded-full text-sm ${categoryColors[selectedDatabase.category] || 'bg-gray-100 text-gray-800'}`}>
-                  {selectedDatabase.category}
-                </span>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Category</h4>
+                  <span className={`px-2 py-1 rounded-full text-sm ${categoryColors[selectedDatabase.category] || 'bg-gray-100 text-gray-800'}`}>
+                    {selectedDatabase.category}
+                  </span>
+                </div>
+                
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Affiliation</h4>
+                  <p className="text-gray-800">{selectedDatabase.affiliation}</p>
+                </div>
+                
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Access Requirements</h4>
+                  <p className="text-gray-800">{selectedDatabase.accessRequirements}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold mb-1">Affiliation</h4>
-                <p className="text-gray-600">{selectedDatabase.affiliation}</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Handling</h4>
+                  <p className="text-gray-800">{selectedDatabase.handling}</p>
+                </div>
+                
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Use Cases</h4>
+                  <p className="text-gray-800">{selectedDatabase.useCases}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="font-semibold mb-1">Access Requirements</h4>
-                <p className="text-gray-600">{selectedDatabase.accessRequirements}</p>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-1">Handling</h4>
-                <p className="text-gray-600">{selectedDatabase.handling}</p>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-1">Use Cases</h4>
-                <p className="text-gray-600">{selectedDatabase.useCases}</p>
-              </div>
+              
               {selectedDatabase.link && (
-                <div>
+                <div className="rounded-lg p-4 border">
+                  <h4 className="font-semibold text-base mb-2 text-gray-700">Visit Database</h4>
                   <a 
                     href={selectedDatabase.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center text-blue-600 hover:text-blue-800"
                   >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Visit Database
+                    <Button variant="outline" className="px-3 py-1 flex items-center">
+                      Visit Database <ExternalLink className="h-4 w-4 ml-2" />
+                    </Button>
                   </a>
                 </div>
               )}
