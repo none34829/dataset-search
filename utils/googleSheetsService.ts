@@ -65,8 +65,12 @@ export async function fetchStudentsFromSheet(): Promise<{ email: string; passwor
 }
 
 // Function to get students (with fallback to mockData if API fails)
-export async function getStudents(): Promise<{ email: string; password: string }[]> {
+export async function getStudents(forceRefresh = false): Promise<{ email: string; password: string }[]> {
   try {
+    // If forceRefresh is true, reset the lastFetchTime to force a new fetch
+    if (forceRefresh) {
+      lastFetchTime = 0;
+    }
     return await fetchStudentsFromSheet();
   } catch (error) {
     console.error('Failed to fetch students from Google Sheets, using mock data:', error);
