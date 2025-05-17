@@ -39,9 +39,12 @@ export async function fetchStudentsFromSheet(): Promise<{ email: string; passwor
     const authClient = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
+    // Properly format sheet name to handle spaces by enclosing in single quotes if needed
+    const formattedSheetName = SHEET_NAME.includes(' ') ? `'${SHEET_NAME}'` : SHEET_NAME;
+    
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:B`, // Assuming column A is email and B is password
+      range: `${formattedSheetName}!A:B`, // Assuming column A is email and B is password
     });
     
     const rows = response.data.values || [];
