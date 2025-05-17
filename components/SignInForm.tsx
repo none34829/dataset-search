@@ -29,6 +29,7 @@ export default function SignInForm({}: LoginFormProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Mock user data for mentors only - students come from Google Sheet
@@ -45,11 +46,8 @@ export default function SignInForm({}: LoginFormProps) {
   // Fetch students data from API when student type is selected
   useEffect(() => {
     if (selectedType === "student") {
-      setIsLoading(true); // Show loading state while fetching initial student data
-      fetchStudents()
-        .finally(() => {
-          setIsLoading(false); // Hide loading state after fetching
-        });
+      // Load students data silently in the background without showing any loading indicator
+      fetchStudents();
     }
   }, [selectedType]);
 
@@ -74,7 +72,6 @@ export default function SignInForm({}: LoginFormProps) {
       setErrorMessage("Error connecting to server. Please try again later.");
       return false;
     }
-    // Not setting isLoading to false here - this will be handled by the caller
   };
 
   // Function to reset form data
@@ -109,6 +106,9 @@ export default function SignInForm({}: LoginFormProps) {
     
     if (!selectedType) return;
 
+    // Always reset error message when starting a new submission
+    setErrorMessage("");
+    
     // Only start loading when user actually submits the form
     setIsLoading(true);
     const userData = {
@@ -267,9 +267,10 @@ export default function SignInForm({}: LoginFormProps) {
             </div>
           )}
           
+
           <button 
             type="submit" 
-            className="w-full bg-blue-500 text-white rounded py-2 flex justify-center items-center" 
+            className="w-full bg-blue-500 text-white rounded py-2 flex justify-center items-center transition-colors" 
             disabled={isLoading}
           >
             {isLoading ? (

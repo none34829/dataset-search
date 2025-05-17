@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 
 // Constants
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '1fkXcAsoZUIpu56XjyKQv2S5OTboYhVhwttGQCCadiFo';
-const SHEET_NAME = process.env.GOOGLE_SHEETS_TAB || 'Sheet1';
+const SHEET_NAME = process.env.GOOGLE_SHEETS_TAB || 'Student Passkeys';
 let cachedStudents: { email: string; password: string }[] = [];
 let lastFetchTime = 0;
 const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
