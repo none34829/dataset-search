@@ -117,24 +117,24 @@ export default function SignInForm({}: LoginFormProps) {
     };
 
     try {
-      // Check credentials against appropriate data source
+      // Handle different user types
       if (selectedType === "student") {
-        // Step 1: Try with currently loaded data (which might be cached)
-        let studentMatch = checkStudentCredentials(students, userData.email, userData.password);
+        // Use the new auth API endpoint that handles cache refreshing automatically
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            password: userData.password,
+            type: 'student'
+          }),
+        });
         
-        // Step 2: If no match is found with cached data, try with fresh data without showing error yet
-        if (!studentMatch) {
-          console.log("No match found in cached data, trying with fresh data...");
-          
-          // Fetch fresh data from Google Sheets (force refresh)
-          // Note: fetchStudents no longer sets isLoading to false internally
-          await fetchStudents(true);
-          
-          // Try matching again with fresh data
-          studentMatch = checkStudentCredentials(students, userData.email, userData.password);
-        }
+        const result = await response.json();
         
-        if (studentMatch) {
+        if (result.success) {
           // Store user info in localStorage
           localStorage.setItem('user', JSON.stringify({
             type: 'student',
@@ -143,8 +143,12 @@ export default function SignInForm({}: LoginFormProps) {
           console.log("Student signed in successfully!");
           router.push('/search');
           return;
+        } else {
+          // Authentication failed
+          setErrorMessage("Wrong Email or Password!");
         }
       } else if (selectedType === "mentor") {
+        // Continue using the existing mentor authentication logic
         const mentorMatch = mockUserData.mentor.find(
           mentor => mentor.email === userData.email && mentor.password === userData.password
         );
@@ -157,11 +161,11 @@ export default function SignInForm({}: LoginFormProps) {
           console.log("Mentor signed in successfully!");
           router.push('/mentor');
           return;
+        } else {
+          setErrorMessage("Wrong Email or Password!");
         }
       }
 
-      // If no match found after retry, show error
-      setErrorMessage("Wrong Email or Password!");
       setIsRetrying(false);
     } catch (error) {
       console.error("Authentication error:", error);

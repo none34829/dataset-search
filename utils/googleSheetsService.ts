@@ -42,24 +42,41 @@ export async function fetchStudentsFromSheet(): Promise<{ email: string; passwor
     // Properly format sheet name to handle spaces by enclosing in single quotes if needed
     const formattedSheetName = SHEET_NAME.includes(' ') ? `'${SHEET_NAME}'` : SHEET_NAME;
     
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${formattedSheetName}!A:B`, // Assuming column A is email and B is password
-    });
+    console.log(`Attempting to fetch from sheet: ${formattedSheetName}`);
+    console.log(`Full range string: ${formattedSheetName}!A:B`);
+    console.log(`Using spreadsheet ID: ${SPREADSHEET_ID}`);
     
-    const rows = response.data.values || [];
-    
-    // Skip header row and map data
-    const students = rows.slice(1).map((row: string[]) => ({
-      email: row[0],
-      password: row[1]
-    }));
-    
-    // Update cache
-    cachedStudents = students;
-    lastFetchTime = now;
-    
-    return students;
+    try {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${formattedSheetName}!A:B`, // Assuming column A is email and B is password
+      });
+      
+      console.log('API Response received');
+      const rows = response.data.values || [];
+      console.log(`Rows fetched: ${rows.length}`);
+      console.log('First few rows (sanitized for security):', rows.slice(0, 3).map((row: string[]) => 
+        row.length > 0 ? { email: row[0] ? row[0].substring(0, 3) + '...' : 'empty', hasPassword: !!row[1] } : 'empty row'
+      ));
+      
+      // Skip header row and map data
+      const students = rows.slice(1).map((row: string[]) => ({
+        email: row[0],
+        password: row[1]
+      }));
+      
+      console.log(`Processed ${students.length} student records`);
+      
+      // Update cache
+      cachedStudents = students;
+      lastFetchTime = now;
+      
+      return students;
+    } catch (apiError) {
+      console.error('Google Sheets API specific error:', apiError);
+      throw apiError; // Re-throw to be caught by the outer catch
+    }
+  
   } catch (error) {
     console.error('Error fetching data from Google Sheets:', error);
     // Return cached data if available, otherwise empty array
@@ -84,4 +101,42 @@ export async function getStudents(forceRefresh = false): Promise<{ email: string
       { email: "ayushChauhan020305@gmail.com", password: "Reynasimp@69" },
     ];
   }
+}
+
+/**
+ * Authenticates a student with the provided credentials
+ * First tries with cached data, then forces a refresh if authentication fails
+ * This ensures newly added records are found without requiring multiple login attempts
+ */
+export async function authenticateStudent(email: string, password: string): Promise<boolean> {
+  // First try with potentially cached data
+  console.log(`Attempting authentication for ${email}`);
+  
+  let students = await getStudents();
+  
+  // Check if credentials match in current cache
+  let authenticated = students.some(student => 
+    student.email === email && student.password === password
+  );
+  
+  // If authentication failed, try again with forced refresh
+  if (!authenticated) {
+    console.log(`Authentication failed with cached data. Forcing refresh for ${email}`);
+    students = await getStudents(true); // Force refresh
+    
+    // Check if credentials match after refresh
+    authenticated = students.some(student => 
+      student.email === email && student.password === password
+    );
+    
+    if (authenticated) {
+      console.log(`Authentication succeeded after cache refresh for ${email}`);
+    } else {
+      console.log(`Authentication failed after cache refresh for ${email}. Invalid credentials.`);
+    }
+  } else {
+    console.log(`Authentication succeeded with cached data for ${email}`);
+  }
+  
+  return authenticated;
 } 
