@@ -69,7 +69,7 @@ export default function MentorDashboard() {
   return (
     <div className={`min-h-screen bg-[#F8F8F8] flex flex-col ${inter.className}`}> 
       {/* Header Bar */}
-      <header className="w-full bg-[#565889] py-4 px-6 flex items-center justify-between shadow-md">
+      <header className="w-full bg-[rgba(86,88,137,0.5)] py-4 px-6 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-4">
           <img src="/updated+logo+3.15.24-2.png" alt="INSPIRIT AI Logo" className="h-10 w-auto" />
           <span className="text-white text-2xl font-semibold tracking-wide">Mentor Portal</span>
@@ -85,7 +85,7 @@ export default function MentorDashboard() {
           {/* Profile Button */}
           <Popover>
             <PopoverTrigger asChild>
-              <button className="h-10 w-10 rounded-full bg-[#565889] text-white flex items-center justify-center font-bold text-lg shadow hover:bg-[#2f3167] transition-colors">
+              <button className="h-10 w-10 rounded-full bg-[#6869A0] text-white flex items-center justify-center font-bold text-lg shadow hover:bg-[#2f3167] transition-colors">
                 {getProfileInitials()}
               </button>
             </PopoverTrigger>

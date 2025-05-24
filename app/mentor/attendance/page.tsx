@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import { X } from "lucide-react";
 import { 
   getTenSessionStudents, 
   getTwentyFiveSessionStudents, 
@@ -27,6 +29,26 @@ interface User {
   email: string;
 }
 
+// Custom styles for the dialog close button
+const customStyles = `
+  /* Hide all default close buttons with extreme specificity */
+  div[role="dialog"] button[data-radix-dialog-close]:not(.custom-close),
+  [role="dialog"] div button[data-radix-dialog-close]:not(.custom-close),
+  div[role="dialog"] > div > button[data-radix-dialog-close]:not(.custom-close),
+  div[role="dialog"] > button[data-radix-dialog-close]:not(.custom-close) {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    display: none !important;
+    pointer-events: none !important;
+  }
+  
+  /* Remove all borders from the custom close button */
+  .custom-close-btn {
+    border: none !important;
+    outline: none !important;
+  }
+`;
+
 export default function AttendanceTracker() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -34,6 +56,8 @@ export default function AttendanceTracker() {
   const [twentyFiveSessionStudents, setTwentyFiveSessionStudents] = useState<TwentyFiveSessionStudent[]>([]);
   const [completedStudents, setCompletedStudents] = useState<CompletedStudent[]>([]);
   const [continuingStudents, setContinuingStudents] = useState<ContinuingStudent[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   useEffect(() => {
     // Load user info from localStorage
@@ -87,6 +111,7 @@ export default function AttendanceTracker() {
 
   return (
     <div className={`flex flex-col min-h-screen ${inter.className}`}>
+      <style dangerouslySetInnerHTML={{ __html: customStyles }} />
       {/* Navigation Bar */}
       <header className="border-b">
         <div className="flex items-center justify-between p-4">
@@ -161,7 +186,7 @@ export default function AttendanceTracker() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 flex-grow">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Student Attendance Records</h2>
+          <h2 className="text-2xl font-bold">Student Progress</h2>
           <Button 
             variant="outline" 
             onClick={() => router.push('/mentor')}
@@ -170,84 +195,80 @@ export default function AttendanceTracker() {
           </Button>
         </div>
         
+        {/* Mentor greeting and submit attendance button */}
+        <div className="flex justify-between items-center mb-6 mt-2">
+          <div>
+            <p className="text-gray-700">
+              Hi {user ? (user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1)) : '<Mentor First Name>'}! Please find your current progress for your assigned students below. Click on each row to see more information about their Goals / Experience, etc
+            </p>
+          </div>
+          <Button className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0">
+            Submit Attendance
+          </Button>
+        </div>
+        
         <Tabs defaultValue="10-session" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="10-session">10-Session Students</TabsTrigger>
-            <TabsTrigger value="25-session">25-Session Students</TabsTrigger>
-            <TabsTrigger value="completed">Completed Students</TabsTrigger>
-            <TabsTrigger value="continuing">Continuing Students</TabsTrigger>
+          <TabsList className="mb-6 bg-gray-100 p-1 rounded-md">
+            <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
+            <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
+            <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
+            <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
           </TabsList>
           
           {/* 10-Session Students Tab */}
           <TabsContent value="10-session">
-            <Card>
-              <CardHeader>
-                <CardTitle>10-Session Students</CardTitle>
-                <CardDescription>
-                  Students currently enrolled in the 10-session program
-                </CardDescription>
+            <Card className="border-0 shadow-sm bg-white rounded-md overflow-hidden">
+              <CardHeader className="px-0 pt-0 pb-4">
+                <div>
+                  <CardDescription className="text-sm text-gray-500">
+                    Students currently enrolled in the 10-session program
+                  </CardDescription>
+                </div>
               </CardHeader>
               <CardContent>
                 {tenSessionStudents.length === 0 ? (
                   <p className="text-center py-4 text-gray-500">No students found in this category</p>
                 ) : (
-                  <div className="space-y-8">
-                    {tenSessionStudents.map((student, index) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">{student.name}</h3>
-                            <p className="text-sm text-gray-500">{student.grade}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm"><span className="font-medium">Deadline:</span> {new Date(student.deadline).toLocaleDateString()}</p>
-                            <p className="text-sm"><span className="font-medium">Sessions Completed:</span> {student.sessionsCompleted}/10</p>
-                          </div>
-                          <div>
-                            <p className="text-sm"><span className="font-medium">Experience:</span> {student.experience}</p>
-                            <p className="text-sm"><span className="font-medium">Goals:</span> {student.goals}</p>
-                          </div>
-                        </div>
-                        
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <TableHead key={i}>Session {i + 1}</TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow>
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <TableCell key={i} className={student.sessionDates[i].date === "Not completed" ? "text-gray-400" : ""}>
-                                  {student.sessionDates[i].date === "Not completed" ? "Not completed" : new Date(student.sessionDates[i].date).toLocaleDateString()}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                        
-                        <Table className="mt-2">
-                          <TableHeader>
-                            <TableRow>
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <TableHead key={i}>Session {i + 6}</TableHead>
-                              ))}
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            <TableRow>
-                              {Array.from({ length: 5 }, (_, i) => (
-                                <TableCell key={i} className={student.sessionDates[i+5].date === "Not completed" ? "text-gray-400" : ""}>
-                                  {student.sessionDates[i+5].date === "Not completed" ? "Not completed" : new Date(student.sessionDates[i+5].date).toLocaleDateString()}
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          </TableBody>
-                        </Table>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead>Meeting Link</TableHead>
+                          <TableHead>Deadline</TableHead>
+                          <TableHead>Sessions completed</TableHead>
+                          <TableHead>1</TableHead>
+                          <TableHead>2</TableHead>
+                          <TableHead>3</TableHead>
+                          <TableHead>4</TableHead>
+                          <TableHead>5</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tenSessionStudents.map((student, index) => (
+                          <TableRow 
+                            key={index} 
+                            className="hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setSelectedStudent({...student, programType: '10-session'});
+                              setIsModalOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-medium">{student.name}</TableCell>
+                            <TableCell>
+                              <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
+                            </TableCell>
+                            <TableCell>{new Date(student.deadline).toLocaleDateString()}</TableCell>
+                            <TableCell>{student.sessionsCompleted}/10</TableCell>
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <TableCell key={i} className={`text-center ${student.sessionDates[i].date === "Not completed" ? "text-gray-400" : ""}`}>
+                                {student.sessionDates[i].date === "Not completed" ? "-" : new Date(student.sessionDates[i].date).toLocaleDateString()}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
@@ -256,65 +277,58 @@ export default function AttendanceTracker() {
           
           {/* 25-Session Students Tab */}
           <TabsContent value="25-session">
-            <Card>
-              <CardHeader>
-                <CardTitle>25-Session Students</CardTitle>
-                <CardDescription>
-                  Students currently enrolled in the 25-session program
-                </CardDescription>
+            <Card className="border-0 shadow-sm bg-white rounded-md overflow-hidden">
+              <CardHeader className="px-0 pt-0 pb-4">
+                <div>
+                  <CardDescription className="text-sm text-gray-500">
+                    Students currently enrolled in the 25-session program
+                  </CardDescription>
+                </div>
               </CardHeader>
               <CardContent>
                 {twentyFiveSessionStudents.length === 0 ? (
                   <p className="text-center py-4 text-gray-500">No students found in this category</p>
                 ) : (
-                  <div className="space-y-8">
-                    {twentyFiveSessionStudents.map((student, index) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <h3 className="text-lg font-semibold">{student.name}</h3>
-                            <p className="text-sm text-gray-500">{student.grade}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm"><span className="font-medium">Deadline:</span> {new Date(student.deadline).toLocaleDateString()}</p>
-                            <p className="text-sm"><span className="font-medium">Sessions Completed:</span> {student.sessionsCompleted}/25</p>
-                          </div>
-                          <div>
-                            <p className="text-sm"><span className="font-medium">Experience:</span> {student.experience}</p>
-                            <p className="text-sm"><span className="font-medium">Goals:</span> {student.goals}</p>
-                          </div>
-                        </div>
-                        
-                        {/* Show session dates in groups of 5 */}
-                        {Array.from({ length: 5 }, (_, groupIndex) => (
-                          <div key={groupIndex} className="mb-4">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <TableHead key={i}>Session {groupIndex * 5 + i + 1}</TableHead>
-                                  ))}
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                <TableRow>
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <TableCell 
-                                      key={i} 
-                                      className={student.sessionDates[groupIndex * 5 + i].date === "Not completed" ? "text-gray-400" : ""}
-                                    >
-                                      {student.sessionDates[groupIndex * 5 + i].date === "Not completed" 
-                                        ? "Not completed" 
-                                        : new Date(student.sessionDates[groupIndex * 5 + i].date).toLocaleDateString()}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              </TableBody>
-                            </Table>
-                          </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead>Meeting Link</TableHead>
+                          <TableHead>Deadline</TableHead>
+                          <TableHead>Sessions completed</TableHead>
+                          <TableHead>1</TableHead>
+                          <TableHead>2</TableHead>
+                          <TableHead>3</TableHead>
+                          <TableHead>4</TableHead>
+                          <TableHead>5</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {twentyFiveSessionStudents.map((student, index) => (
+                          <TableRow 
+                            key={index} 
+                            className="hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setSelectedStudent({...student, programType: '25-session'});
+                              setIsModalOpen(true);
+                            }}
+                          >
+                            <TableCell className="font-medium">{student.name}</TableCell>
+                            <TableCell>
+                              <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
+                            </TableCell>
+                            <TableCell>{new Date(student.deadline).toLocaleDateString()}</TableCell>
+                            <TableCell>{student.sessionsCompleted}/25</TableCell>
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <TableCell key={i} className={`text-center ${student.sessionDates[i].date === "Not completed" ? "text-gray-400" : ""}`}>
+                                {student.sessionDates[i].date === "Not completed" ? "-" : new Date(student.sessionDates[i].date).toLocaleDateString()}
+                              </TableCell>
+                            ))}
+                          </TableRow>
                         ))}
-                      </div>
-                    ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
@@ -417,6 +431,61 @@ export default function AttendanceTracker() {
       <footer className="border-t p-4 text-center text-gray-500 text-sm">
         <p>© {new Date().getFullYear()} Inspirit AI. All rights reserved.</p>
       </footer>
+      
+      {/* Student Detail Modal - Custom Implementation */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/80 transition-opacity"
+            onClick={() => setIsModalOpen(false)}
+          />
+          
+          {/* Modal Content */}
+          <div className={`relative bg-white rounded-md max-w-2xl w-full overflow-hidden p-0 z-50 shadow-lg ${inter.className}`}>
+            {/* Custom close button */}
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute -top-1 -right-1 h-8 w-8 flex items-center justify-center bg-transparent hover:bg-transparent transition-colors cursor-pointer z-10 custom-close-btn border-0 outline-0 shadow-none"
+              style={{ border: '0', outline: '0', boxShadow: 'none' }}
+            >
+              <X className="h-5 w-5 text-gray-700" />
+            </button>
+            {selectedStudent && (
+              <div className="p-6 space-y-6 w-full">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-100 p-4 rounded-md">
+                    <h3 className="text-lg font-semibold">{selectedStudent.name}</h3>
+                    <p className="text-gray-500">{selectedStudent.grade}</p>
+                  </div>
+                  <div className="bg-gray-100 p-4 rounded-md">
+                    <p>
+                      <span className="font-medium">Deadline:</span> {new Date(selectedStudent.deadline).toLocaleDateString()}
+                    </p>
+                    <p>
+                      <span className="font-medium">Sessions Completed:</span> {selectedStudent.sessionsCompleted}/{selectedStudent.programType === '10-session' ? '10' : '25'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-100 p-4 rounded-md">
+                  <p className="mb-2"><span className="font-medium">Experience:</span> {selectedStudent.experience}</p>
+                  <p><span className="font-medium">Goals:</span> {selectedStudent.goals}</p>
+                </div>
+                
+                <div className="flex justify-between items-center mt-4 mb-4">
+                  <h4 className="font-medium">Dedicated Meeting Link</h4>
+                  <Link href="#" className="text-blue-600 hover:underline">Open Meeting Link</Link>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Pre-Program Information Here</h4>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
