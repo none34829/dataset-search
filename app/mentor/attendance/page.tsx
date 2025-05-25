@@ -144,19 +144,29 @@ export default function AttendanceTracker() {
   const getProfileInitials = () => {
     if (!user) return '';
     
-    const name = user.email.split('@')[0];
-    const parts = name.split(/[._-]/);
+    // Use fullName if available, otherwise fall back to email
+    const nameToUse = user.fullName || user.email.split('@')[0];
     
-    if (parts.length > 1) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    } else {
-      const matches = name.match(/[A-Z]|[0-9]|\b[a-z]/g);
-      if (matches && matches.length > 1) {
-        return (matches[0] + (matches[1] || '')).toUpperCase();
-      } else {
-        return name.substring(0, 2).toUpperCase();
-      }
+    // Split into words and get first letters of first two words
+    const nameParts = nameToUse.trim().split(/\s+/);
+    
+    if (nameParts.length >= 2) {
+      // First letter of first and last name
+      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+    } else if (nameParts[0]) {
+      // If only one name part, use first two characters if available
+      return nameParts[0].substring(0, 2).toUpperCase();
     }
+    
+    // Fallback to first two letters of email username
+    const emailParts = user.email.split('@')[0].split(/[._-]/);
+    if (emailParts.length >= 2) {
+      return (emailParts[0][0] + emailParts[1][0]).toUpperCase();
+    } else if (emailParts[0]) {
+      return emailParts[0].substring(0, 2).toUpperCase();
+    }
+    
+    return '??';
   };
   
   const handleLogout = () => {
@@ -224,7 +234,8 @@ export default function AttendanceTracker() {
             <Popover>
               <PopoverTrigger asChild>
                 <button 
-                  className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-sm font-medium"
+                  className="h-10 w-10 rounded-full bg-gradient-to-r from-[#565889] to-[#2f3167] flex items-center justify-center text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+                  aria-label="User menu"
                 >
                   {getProfileInitials()}
                 </button>
