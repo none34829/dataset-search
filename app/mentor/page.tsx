@@ -13,6 +13,7 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 interface User {
   type: string;
   email: string;
+  fullName?: string;
 }
 
 export default function MentorDashboard() {
@@ -39,18 +40,26 @@ export default function MentorDashboard() {
   const getProfileInitials = () => {
     if (!user) return '';
     
+    // If we have the mentor's full name, use the first letter of the first and second words
+    if (user.fullName) {
+      const nameParts = user.fullName.trim().split(/\s+/);
+      if (nameParts.length >= 2) {
+        // First letter of first word + first letter of second word
+        return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+      } else if (nameParts[0]) {
+        // If only one word, use first two letters
+        return nameParts[0].substring(0, 2).toUpperCase();
+      }
+    }
+    
+    // Fallback to email if no name is available
     const name = user.email.split('@')[0];
     const parts = name.split(/[._-]/);
     
     if (parts.length > 1) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     } else {
-      const matches = name.match(/[A-Z]|[0-9]|\b[a-z]/g);
-      if (matches && matches.length > 1) {
-        return (matches[0] + (matches[1] || '')).toUpperCase();
-      } else {
-        return name.substring(0, 2).toUpperCase();
-      }
+      return name.substring(0, 2).toUpperCase();
     }
   };
   
@@ -63,8 +72,23 @@ export default function MentorDashboard() {
     return null;
   }
 
-  // Extract mentor first name from email (or update if you have a name field)
-  const mentorFirstName = user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1);
+  // Extract mentor first name from the Mentor Name column
+  let mentorFirstName = '';
+  if (user.fullName) {
+    // Get just the first name (first word) from the full name in the Mentor Name column
+    const nameWords = user.fullName.trim().split(' ');
+    if (nameWords.length > 0) {
+      // Format the first name properly (capitalize first letter)
+      mentorFirstName = nameWords[0].charAt(0).toUpperCase() + nameWords[0].slice(1).toLowerCase();
+      console.log('Using mentor first name from Mentor Name column:', mentorFirstName);
+    }
+  }
+  
+  // Fallback to email only if we couldn't get a name from the Mentor Name column
+  if (!mentorFirstName) {
+    mentorFirstName = user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1);
+    console.log('Using fallback email-based name:', mentorFirstName);
+  }
 
   return (
     <div className={`min-h-screen bg-[#F8F8F8] flex flex-col ${inter.className}`}> 

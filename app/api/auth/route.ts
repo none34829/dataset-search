@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticateStudent } from '@/utils/googleSheetsService';
+import { authenticateMentor } from '@/utils/mentorAuthService';
 
 // API route to authenticate user credentials against Google Sheets
 export async function POST(request: Request) {
@@ -27,8 +28,17 @@ export async function POST(request: Request) {
         success: isAuthenticated,
         message: isAuthenticated ? 'Authentication successful' : 'Invalid credentials'
       });
+    } else if (type === 'mentor') {
+      // Use our mentor authentication function
+      const { authenticated, mentorName } = await authenticateMentor(email, password);
+      
+      return NextResponse.json({ 
+        success: authenticated,
+        message: authenticated ? 'Authentication successful' : 'Invalid credentials',
+        mentorName: mentorName // Include mentor's full name from the Mentor Name column
+      });
     } else {
-      // For other user types, return error (or implement other auth methods)
+      // For other user types, return error
       return NextResponse.json(
         { 
           success: false, 

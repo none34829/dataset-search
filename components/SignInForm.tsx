@@ -32,16 +32,7 @@ export default function SignInForm({}: LoginFormProps) {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Mock user data for mentors only - students come from Google Sheet
-  const mockUserData = {
-    mentor: [
-      { email: "mentor@example.com", password: "mentorPass" },
-      { email: "green_pan@gmail.com", password: "green123" },
-      { email: "mentor@example.com", password: "mentorPass" },
-      { email: "mentor@example.com", password: "mentorPass" },
-      { email: "mentor@example.com", password: "mentorPass" },
-    ]
-  };
+  // We don't need mock data anymore as both students and mentors come from Google Sheets
 
   // Fetch students data from API when student type is selected
   useEffect(() => {
@@ -148,21 +139,38 @@ export default function SignInForm({}: LoginFormProps) {
           setErrorMessage("Wrong Email or Password!");
         }
       } else if (selectedType === "mentor") {
-        // Continue using the existing mentor authentication logic
-        const mentorMatch = mockUserData.mentor.find(
-          mentor => mentor.email === userData.email && mentor.password === userData.password
-        );
+        // Use the auth API endpoint for mentor authentication
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            password: userData.password, // This is the passkey for mentors
+            type: 'mentor'
+          }),
+        });
         
-        if (mentorMatch) {
+        const result = await response.json();
+        console.log('Mentor auth result:', result); // Debug the mentor name
+        
+        if (result.success) {
+          // Make sure we're getting the full mentor name from the Mentor Name column
+          const mentorFullName = result.mentorName || '';
+          console.log('Using mentor name:', mentorFullName);
+          
+          // Store user info in localStorage with mentor name from the Mentor Name column
           localStorage.setItem('user', JSON.stringify({
             type: 'mentor',
-            email: userData.email
+            email: userData.email,
+            fullName: mentorFullName 
           }));
           console.log("Mentor signed in successfully!");
           router.push('/mentor');
           return;
         } else {
-          setErrorMessage("Wrong Email or Password!");
+          setErrorMessage("Wrong Email or Passkey!");
         }
       }
 

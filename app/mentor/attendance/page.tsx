@@ -9,17 +9,23 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
+
+// Import types only from the service
+import type { 
+  TenSessionStudent,
+  TwentyFiveSessionStudent,
+  CompletedStudent,
+  ContinuingStudent
+} from '@/utils/googleSheetsService';
+
+// Import the server actions that handle the filtering by mentor
 import { 
-  getTenSessionStudents, 
-  getTwentyFiveSessionStudents, 
-  getCompletedStudents, 
-  getContinuingStudents,
-  type TenSessionStudent,
-  type TwentyFiveSessionStudent,
-  type CompletedStudent,
-  type ContinuingStudent
-} from '@/utils/attendanceService';
+  fetchTenSessionStudents,
+  fetchTwentyFiveSessionStudents,
+  fetchCompletedStudents,
+  fetchContinuingStudents
+} from './serverActions';
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -27,6 +33,7 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 interface User {
   type: string;
   email: string;
+  fullName?: string;
 }
 
 // Custom styles for the dialog close button
@@ -58,28 +65,80 @@ export default function AttendanceTracker() {
   const [continuingStudents, setContinuingStudents] = useState<ContinuingStudent[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     // Load user info from localStorage
     const userStr = localStorage.getItem('user');
     if (!userStr) {
+      console.log('No user found in localStorage, redirecting to login');
       router.push('/'); // Redirect to login if no user found
       return;
     }
     
-    const parsedUser = JSON.parse(userStr);
-    if (parsedUser.type !== 'mentor') {
-      router.push('/search'); // Redirect non-mentors to dataset search
+    let parsedUser;
+    try {
+      parsedUser = JSON.parse(userStr);
+      console.log('Parsed user from localStorage:', parsedUser);
+      
+      if (parsedUser.type !== 'mentor') {
+        console.log('User is not a mentor, redirecting to search');
+        router.push('/search'); // Redirect non-mentors to dataset search
+        return;
+      }
+      
+      setUser(parsedUser);
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+      router.push('/');
       return;
     }
     
-    setUser(parsedUser);
-    
     // Load attendance data
-    setTenSessionStudents(getTenSessionStudents());
-    setTwentyFiveSessionStudents(getTwentyFiveSessionStudents());
-    setCompletedStudents(getCompletedStudents());
-    setContinuingStudents(getContinuingStudents());
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Get the mentor's full name to filter students
+        const mentorName = parsedUser.fullName || '';
+        console.log('Fetching students for mentor:', mentorName);
+        
+        if (!mentorName) {
+          console.error('No mentor name found for the logged-in user');
+          throw new Error('Mentor name not found');
+        }
+        
+        // Log the exact values being passed to each function
+        console.log('Calling fetchTenSessionStudents with:', { mentorName });
+        const tenSessionData = await fetchTenSessionStudents(false, mentorName);
+        console.log('fetchTenSessionStudents result:', tenSessionData);
+        
+        console.log('Calling fetchTwentyFiveSessionStudents with:', { mentorName });
+        const twentyFiveSessionData = await fetchTwentyFiveSessionStudents(false, mentorName);
+        console.log('fetchTwentyFiveSessionStudents result:', twentyFiveSessionData);
+        
+        console.log('Calling fetchCompletedStudents with:', { mentorName });
+        const completedData = await fetchCompletedStudents(false, mentorName);
+        console.log('fetchCompletedStudents result:', completedData);
+        
+        console.log('Calling fetchContinuingStudents with:', { mentorName });
+        const continuingData = await fetchContinuingStudents(false, mentorName);
+        console.log('fetchContinuingStudents result:', continuingData);
+        
+        console.log(`Found ${tenSessionData.length} 10-session students for ${mentorName}`);
+        console.log('Sample mentor names in 10-session:', tenSessionData.slice(0, 3).map((s: any) => s.mentorName));
+        
+        setTenSessionStudents(tenSessionData);
+        setTwentyFiveSessionStudents(twentyFiveSessionData);
+        setCompletedStudents(completedData);
+        setContinuingStudents(continuingData);
+      } catch (error) {
+        console.error('Error fetching attendance data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
   }, [router]);
 
   const getProfileInitials = () => {
@@ -199,7 +258,15 @@ export default function AttendanceTracker() {
         <div className="flex justify-between items-center mb-6 mt-2">
           <div>
             <p className="text-gray-700">
-              Hi {user ? (user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1)) : '<Mentor First Name>'}! Please find your current progress for your assigned students below. Click on each row to see more information about their Goals / Experience, etc
+              Hi {user ? (
+                user.fullName ? (
+                  // Use first word from fullName if available
+                  user.fullName.trim().split(/\s+/)[0]
+                ) : (
+                  // Fallback to email if no fullName
+                  user.email.split('@')[0].split(/[._-]/)[0]
+                )
+              ) : 'Mentor'}! Please find your current progress for your assigned students below. Click on each row to see more information about their Goals / Experience, etc
             </p>
           </div>
           <Button className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0">
@@ -226,7 +293,12 @@ export default function AttendanceTracker() {
                 </div>
               </CardHeader>
               <CardContent>
-                {tenSessionStudents.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                    <span className="ml-2 text-gray-500">Loading student data...</span>
+                  </div>
+                ) : tenSessionStudents.length === 0 ? (
                   <p className="text-center py-4 text-gray-500">No students found in this category</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -242,6 +314,11 @@ export default function AttendanceTracker() {
                           <TableHead>3</TableHead>
                           <TableHead>4</TableHead>
                           <TableHead>5</TableHead>
+                          <TableHead>6</TableHead>
+                          <TableHead>7</TableHead>
+                          <TableHead>8</TableHead>
+                          <TableHead>9</TableHead>
+                          <TableHead>10</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -256,15 +333,49 @@ export default function AttendanceTracker() {
                           >
                             <TableCell className="font-medium">{student.name}</TableCell>
                             <TableCell>
-                              <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
+                              <Link 
+                                href={student.meetingLink || '#'} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline" 
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Join
+                              </Link>
                             </TableCell>
-                            <TableCell>{new Date(student.deadline).toLocaleDateString()}</TableCell>
-                            <TableCell>{student.sessionsCompleted}/10</TableCell>
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <TableCell key={i} className={`text-center ${student.sessionDates[i].date === "Not completed" ? "text-gray-400" : ""}`}>
-                                {student.sessionDates[i].date === "Not completed" ? "-" : new Date(student.sessionDates[i].date).toLocaleDateString()}
-                              </TableCell>
-                            ))}
+                            <TableCell>{student.deadline ? new Date(student.deadline).toLocaleDateString() : 'N/A'}</TableCell>
+                            <TableCell>{student.sessionsCompleted || 0}/10</TableCell>
+                            {Array.from({ length: 10 }, (_, i) => {
+                              const session = student.sessionDates[i];
+                              const sessionDate = session?.date;
+                              const isFuture = sessionDate && new Date(sessionDate) > new Date();
+                              const isCompleted = session?.completed;
+                              
+                              let displayText = '-';
+                              let className = 'text-gray-400';
+                              
+                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '') {
+                                if (isFuture) {
+                                  displayText = 'Scheduled';
+                                  className = 'text-blue-600';
+                                } else if (isCompleted) {
+                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  className = 'text-green-600';
+                                } else {
+                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  className = 'text-gray-900';
+                                }
+                              }
+                              
+                              return (
+                                <TableCell 
+                                  key={i} 
+                                  className={`text-center text-sm ${className}`}
+                                >
+                                  {displayText}
+                                </TableCell>
+                              );
+                            })}
                           </TableRow>
                         ))}
                       </TableBody>
@@ -320,11 +431,37 @@ export default function AttendanceTracker() {
                             </TableCell>
                             <TableCell>{new Date(student.deadline).toLocaleDateString()}</TableCell>
                             <TableCell>{student.sessionsCompleted}/25</TableCell>
-                            {Array.from({ length: 5 }, (_, i) => (
-                              <TableCell key={i} className={`text-center ${student.sessionDates[i].date === "Not completed" ? "text-gray-400" : ""}`}>
-                                {student.sessionDates[i].date === "Not completed" ? "-" : new Date(student.sessionDates[i].date).toLocaleDateString()}
-                              </TableCell>
-                            ))}
+                            {Array.from({ length: 25 }, (_, i) => {
+                              const session = student.sessionDates[i];
+                              const sessionDate = session?.date;
+                              const isFuture = sessionDate && new Date(sessionDate) > new Date();
+                              const isCompleted = session?.completed;
+                              
+                              let displayText = '-';
+                              let className = 'text-gray-400';
+                              
+                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '') {
+                                if (isFuture) {
+                                  displayText = 'Scheduled';
+                                  className = 'text-blue-600';
+                                } else if (isCompleted) {
+                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  className = 'text-green-600';
+                                } else {
+                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  className = 'text-gray-900';
+                                }
+                              }
+                              
+                              return (
+                                <TableCell 
+                                  key={i} 
+                                  className={`text-center text-sm ${className}`}
+                                >
+                                  {displayText}
+                                </TableCell>
+                              );
+                            })}
                           </TableRow>
                         ))}
                       </TableBody>
