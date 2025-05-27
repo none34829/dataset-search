@@ -14,6 +14,8 @@ export interface BaseStudentData {
   sessionsCompleted: number;
   totalSessions: number;
   email?: string;
+  preProgramInfo?: string;
+  preAssessmentInfo?: string;
 }
 
 export interface TenSessionStudent extends BaseStudentData {
@@ -290,6 +292,38 @@ export async function fetchStudentAttendanceData(forceRefresh = false): Promise<
       const deadline = getColumnValue(row, ['Deadline', 'deadline', 'Due Date', 'duedate']);
       const totalSessions = parseInt(getColumnValue(row, ['# Sessions', 'sessions', 'Total Sessions', 'Number of Sessions', 'Session Count']) || '10', 10);
       
+      // Get columns J, K, L and combine them for Pre-Program Information
+      const preProgramJ = row[9] || ''; // Column J (0-indexed, so 9)
+      const preProgramK = row[10] || ''; // Column K
+      const preProgramL = row[11] || ''; // Column L
+      
+      // Format pre-program information with line breaks before dash-prefixed content
+      let preProgramInfo = '';
+      [preProgramJ, preProgramK, preProgramL].filter(Boolean).forEach((item, index) => {
+        // If the item starts with a dash, add a newline before it
+        if (item.trim().startsWith('-')) {
+          preProgramInfo += (index === 0 ? '' : '\n\n') + item;
+        } else {
+          preProgramInfo += (index === 0 ? '' : ' - ') + item;
+        }
+      });
+      
+      // Get columns M, N, O and combine them for Pre-Program Assessment
+      const preAssessmentM = row[12] || ''; // Column M
+      const preAssessmentN = row[13] || ''; // Column N
+      const preAssessmentO = row[14] || ''; // Column O
+      
+      // Format pre-assessment information with line breaks before dash-prefixed content
+      let preAssessmentInfo = '';
+      [preAssessmentM, preAssessmentN, preAssessmentO].filter(Boolean).forEach((item, index) => {
+        // If the item starts with a dash, add a newline before it
+        if (item.trim().startsWith('-')) {
+          preAssessmentInfo += (index === 0 ? '' : '\n\n') + item;
+        } else {
+          preAssessmentInfo += (index === 0 ? '' : ' - ') + item;
+        }
+      });
+      
       console.log('Mapped values:', {
         mentorName,
         studentName,
@@ -309,7 +343,9 @@ export async function fetchStudentAttendanceData(forceRefresh = false): Promise<
         deadline,
         totalSessions,
         sessionsCompleted: 0,
-        sessionDates: []
+        sessionDates: [],
+        preProgramInfo,
+        preAssessmentInfo
       };
       
       console.log('Created student object:', {

@@ -1,4 +1,29 @@
-// ... (previous imports and interfaces remain the same)
+"use server";
+
+import { google } from 'googleapis';
+import { fetchStudentAttendanceData } from './googleSheetsService';
+
+// Types for student data
+export interface BaseStudentData {
+  name: string;
+  mentorName: string;
+  meetingLink: string;
+  grade: string;
+  experience: string;
+  goals: string;
+  deadline: string;
+  sessionsCompleted: number;
+  totalSessions: number;
+  email?: string;
+}
+
+export interface CompletedStudent extends BaseStudentData {
+  totalSessionsCompleted: number;
+}
+
+export interface ContinuingStudent extends BaseStudentData {
+  sessionsRemaining: number;
+}
 
 // Get students who have completed their program, optionally filtered by mentor name
 export async function getCompletedStudents(forceRefresh = false, mentorName?: string): Promise<CompletedStudent[]> {

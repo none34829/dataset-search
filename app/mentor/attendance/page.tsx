@@ -57,6 +57,23 @@ const customStyles = `
 `;
 
 export default function AttendanceTracker() {
+  // Function to format text with dashes by adding line breaks and ensuring all paragraphs start with dashes
+  const formatDashedText = (text: string | undefined) => {
+    if (!text) return '';
+    
+    // Check if the text starts with a dash already
+    let formattedText = text.trim();
+    if (!formattedText.startsWith('- ')) {
+      // Add a dash to the first paragraph
+      formattedText = '- ' + formattedText;
+    }
+    
+    // Find all dash-prefixed items and ensure proper spacing between them
+    formattedText = formattedText.replace(/([^\n])\s*- /g, '$1\n\n- ');
+    
+    return formattedText;
+  };
+  
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [tenSessionStudents, setTenSessionStudents] = useState<TenSessionStudent[]>([]);
@@ -354,7 +371,7 @@ export default function AttendanceTracker() {
                                 Join
                               </Link>
                             </TableCell>
-                            <TableCell>{student.deadline ? new Date(student.deadline).toLocaleDateString() : 'N/A'}</TableCell>
+                            <TableCell>{student.deadline ? new Date(student.deadline).toLocaleDateString('en-US') : 'N/A'}</TableCell>
                             <TableCell>{student.sessionsCompleted || 0}/10</TableCell>
                             {Array.from({ length: 10 }, (_, i) => {
                               const session = student.sessionDates[i];
@@ -370,10 +387,10 @@ export default function AttendanceTracker() {
                                   displayText = 'Scheduled';
                                   className = 'text-blue-600';
                                 } else if (isCompleted) {
-                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  displayText = new Date(sessionDate).toLocaleDateString('en-US');
                                   className = 'text-green-600';
                                 } else {
-                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  displayText = new Date(sessionDate).toLocaleDateString('en-US');
                                   className = 'text-gray-900';
                                 }
                               }
@@ -440,7 +457,7 @@ export default function AttendanceTracker() {
                             <TableCell>
                               <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
                             </TableCell>
-                            <TableCell>{new Date(student.deadline).toLocaleDateString()}</TableCell>
+                            <TableCell>{new Date(student.deadline).toLocaleDateString('en-US')}</TableCell>
                             <TableCell>{student.sessionsCompleted}/25</TableCell>
                             {Array.from({ length: 25 }, (_, i) => {
                               const session = student.sessionDates[i];
@@ -456,10 +473,10 @@ export default function AttendanceTracker() {
                                   displayText = 'Scheduled';
                                   className = 'text-blue-600';
                                 } else if (isCompleted) {
-                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  displayText = new Date(sessionDate).toLocaleDateString('en-US');
                                   className = 'text-green-600';
                                 } else {
-                                  displayText = new Date(sessionDate).toLocaleDateString();
+                                  displayText = new Date(sessionDate).toLocaleDateString('en-US');
                                   className = 'text-gray-900';
                                 }
                               }
@@ -577,7 +594,7 @@ export default function AttendanceTracker() {
       
       {/* Footer */}
       <footer className="border-t p-4 text-center text-gray-500 text-sm">
-        <p>© {new Date().getFullYear()} Inspirit AI. All rights reserved.</p>
+        <p> {new Date().getFullYear()} Inspirit AI. All rights reserved.</p>
       </footer>
       
       {/* Student Detail Modal - Custom Implementation */}
@@ -590,7 +607,8 @@ export default function AttendanceTracker() {
           />
           
           {/* Modal Content */}
-          <div className={`relative bg-white rounded-md max-w-2xl w-full overflow-hidden p-0 z-50 shadow-lg ${inter.className}`}>
+          <div className={`relative bg-white rounded-md max-w-2xl w-full overflow-hidden p-0 z-50 shadow-lg ${inter.className}`}
+               style={{ maxHeight: '85vh' }}>
             {/* Custom close button */}
             <button
               onClick={() => setIsModalOpen(false)}
@@ -600,7 +618,7 @@ export default function AttendanceTracker() {
               <X className="h-5 w-5 text-gray-700" />
             </button>
             {selectedStudent && (
-              <div className="p-6 space-y-6 w-full">
+              <div className="p-6 space-y-6 w-full overflow-y-auto" style={{ maxHeight: 'calc(85vh - 40px)' }}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-100 p-4 rounded-md">
                     <h3 className="text-lg font-semibold">{selectedStudent.name}</h3>
@@ -608,7 +626,7 @@ export default function AttendanceTracker() {
                   </div>
                   <div className="bg-gray-100 p-4 rounded-md">
                     <p>
-                      <span className="font-medium">Deadline:</span> {new Date(selectedStudent.deadline).toLocaleDateString()}
+                      <span className="font-medium">Deadline:</span> {new Date(selectedStudent.deadline).toLocaleDateString('en-US')}
                     </p>
                     <p>
                       <span className="font-medium">Sessions Completed:</span> {selectedStudent.sessionsCompleted}/{selectedStudent.programType === '10-session' ? '10' : '25'}
@@ -616,18 +634,59 @@ export default function AttendanceTracker() {
                   </div>
                 </div>
                 
+                <div className="flex justify-between items-center mt-4 mb-4">
+                  <h4 className="font-medium">Dedicated Meeting Link</h4>
+                  <Link 
+                    href={selectedStudent.meetingLink || '#'} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Open Meeting Link
+                  </Link>
+                </div>
+                
                 <div className="bg-gray-100 p-4 rounded-md">
                   <p className="mb-2"><span className="font-medium">Experience:</span> {selectedStudent.experience}</p>
                   <p><span className="font-medium">Goals:</span> {selectedStudent.goals}</p>
                 </div>
                 
-                <div className="flex justify-between items-center mt-4 mb-4">
-                  <h4 className="font-medium">Dedicated Meeting Link</h4>
-                  <Link href="#" className="text-blue-600 hover:underline">Open Meeting Link</Link>
+                {/* Pre-Program Information */}
+                <div className="bg-gray-100 p-4 rounded-md">
+                  <h4 className="font-medium mb-2">Pre-Program Information</h4>
+                  <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available').replace(/\n/g, '<br />') }} />
                 </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Pre-Program Information Here</h4>
+                
+                {/* Pre-Program Assessment (Collapsible) */}
+                <div className="bg-gray-100 rounded-md overflow-hidden">
+                  <button 
+                    onClick={() => {
+                      const element = document.getElementById('pre-assessment-content');
+                      if (element) {
+                        element.classList.toggle('hidden');
+                      }
+                    }}
+                    className="w-full p-4 text-left font-medium flex justify-between items-center"
+                  >
+                    <span>Pre-Program Assessment</span>
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                      className="transform transition-transform duration-200"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  <div id="pre-assessment-content" className="hidden p-4 pt-0 border-t border-gray-200">
+                    <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available').replace(/\n/g, '<br />') }} />
+                  </div>
                 </div>
               </div>
             )}
