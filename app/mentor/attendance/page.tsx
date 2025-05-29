@@ -58,18 +58,41 @@ const customStyles = `
 
 export default function AttendanceTracker() {
   // Function to format text with dashes by adding line breaks and ensuring all paragraphs start with dashes
-  const formatDashedText = (text: string | undefined) => {
+  // Column headers from spreadsheet
+  const preProgramHeaders = {
+    j1: "Additional Goals",
+    k1: "Requested Areas of Support",
+    l1: "Project Track"
+  };
+
+  const preAssessmentHeaders = {
+    m1: "Assessment Score",
+    n1: "Definition of Pandas DF",
+    o1: "Reason for Train/Test Split"
+  };
+
+  const formatDashedText = (text: string | undefined, isPreProgram = true) => {
     if (!text) return '';
     
-    // Check if the text starts with a dash already
-    let formattedText = text.trim();
-    if (!formattedText.startsWith('- ')) {
-      // Add a dash to the first paragraph
-      formattedText = '- ' + formattedText;
-    }
+    // Split the text by line breaks or dash prefixes
+    const parts = text.split(/\n+|(?=- )/).filter(part => part.trim());
     
-    // Find all dash-prefixed items and ensure proper spacing between them
-    formattedText = formattedText.replace(/([^\n])\s*- /g, '$1\n\n- ');
+    // Get the appropriate headers based on the section
+    const headers = isPreProgram ? Object.values(preProgramHeaders) : Object.values(preAssessmentHeaders);
+    
+    let formattedText = '';
+    
+    // Replace dashes with column headers or use existing structure
+    parts.forEach((part, index) => {
+      const cleanPart = part.replace(/^- /, '');
+      const header = headers[index % headers.length] || `Item ${index + 1}`;
+      formattedText += `<strong>${header}:</strong> ${cleanPart}`;
+      
+      // Add line break between items
+      if (index < parts.length - 1) {
+        formattedText += '<br /><br />';
+      }
+    });
     
     return formattedText;
   };
@@ -368,7 +391,7 @@ export default function AttendanceTracker() {
                                 className="text-blue-600 hover:underline" 
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                Join
+                                {student.meetingLink || 'No meeting link available'}
                               </Link>
                             </TableCell>
                             <TableCell>{student.deadline ? new Date(student.deadline).toLocaleDateString('en-US') : 'N/A'}</TableCell>
@@ -436,11 +459,9 @@ export default function AttendanceTracker() {
                           <TableHead>Meeting Link</TableHead>
                           <TableHead>Deadline</TableHead>
                           <TableHead>Sessions completed</TableHead>
-                          <TableHead>1</TableHead>
-                          <TableHead>2</TableHead>
-                          <TableHead>3</TableHead>
-                          <TableHead>4</TableHead>
-                          <TableHead>5</TableHead>
+                          {Array.from({ length: 25 }, (_, i) => (
+                            <TableHead key={i}>{i + 1}</TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -455,7 +476,7 @@ export default function AttendanceTracker() {
                           >
                             <TableCell className="font-medium">{student.name}</TableCell>
                             <TableCell>
-                              <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
+                              <Link href={student.meetingLink || '#'} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{student.meetingLink || 'No meeting link available'}</Link>
                             </TableCell>
                             <TableCell>{new Date(student.deadline).toLocaleDateString('en-US')}</TableCell>
                             <TableCell>{student.sessionsCompleted}/25</TableCell>
@@ -468,7 +489,7 @@ export default function AttendanceTracker() {
                               let displayText = '-';
                               let className = 'text-gray-400';
                               
-                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '') {
+                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '' && !isNaN(new Date(sessionDate).getTime())) {
                                 if (isFuture) {
                                   displayText = 'Scheduled';
                                   className = 'text-blue-600';
@@ -642,7 +663,7 @@ export default function AttendanceTracker() {
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
                   >
-                    Open Meeting Link
+                    {selectedStudent.meetingLink || 'No meeting link available'}
                   </Link>
                 </div>
                 
@@ -654,7 +675,7 @@ export default function AttendanceTracker() {
                 {/* Pre-Program Information */}
                 <div className="bg-gray-100 p-4 rounded-md">
                   <h4 className="font-medium mb-2">Pre-Program Information</h4>
-                  <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available').replace(/\n/g, '<br />') }} />
+                  <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available', true) }} />
                 </div>
                 
                 {/* Pre-Program Assessment (Collapsible) */}
@@ -685,7 +706,7 @@ export default function AttendanceTracker() {
                     </svg>
                   </button>
                   <div id="pre-assessment-content" className="hidden p-4 pt-0 border-t border-gray-200">
-                    <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available').replace(/\n/g, '<br />') }} />
+                    <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available', false) }} />
                   </div>
                 </div>
               </div>
