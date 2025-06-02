@@ -9,7 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 
 // Import types only from the service
 import type { 
@@ -110,7 +110,71 @@ export default function AttendanceTracker() {
   const [continuingStudents, setContinuingStudents] = useState<ContinuingStudent[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Function to handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if already sorting by this field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Function to render sort icon
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400 flex-shrink-0" />;
+    } else if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 text-gray-900 flex-shrink-0" />;
+    } else {
+      return <ArrowDown className="h-4 w-4 text-gray-900 flex-shrink-0" />;
+    }
+  };
+
+  // Function to handle student search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  // Function to sort students based on current sort field and direction
+  const sortStudents = (students: any[]) => {
+    return [...students].sort((a, b) => {
+      if (sortField === 'name') {
+        return sortDirection === 'asc' 
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      } else if (sortField === 'deadline') {
+        const dateA = a.deadline ? new Date(a.deadline).getTime() : 0;
+        const dateB = b.deadline ? new Date(b.deadline).getTime() : 0;
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortField === 'sessionsCompleted') {
+        const sessionsA = a.sessionsCompleted || 0;
+        const sessionsB = b.sessionsCompleted || 0;
+        return sortDirection === 'asc' ? sessionsA - sessionsB : sessionsB - sessionsA;
+      }
+      return 0;
+    });
+  };
+  
+  // Function to filter students based on search term
+  const filterStudents = (students: any[]) => {
+    if (!searchTerm.trim()) return students;
+    
+    return students.filter(student => 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+  
+  // Apply both sorting and filtering
+  const filteredAndSortedTenSessionStudents = filterStudents(sortStudents(tenSessionStudents));
+  const filteredAndSortedTwentyFiveSessionStudents = filterStudents(sortStudents(twentyFiveSessionStudents));
   
   useEffect(() => {
     // Load user info from localStorage
@@ -313,17 +377,35 @@ export default function AttendanceTracker() {
         {/* Mentor greeting and submit attendance button */}
         <div className="flex justify-between items-center mb-6 mt-2">
           <div>
-            <p className="text-gray-700">
-              Hi {user ? (
-                user.fullName ? (
-                  // Use first word from fullName if available
-                  user.fullName.trim().split(/\s+/)[0]
-                ) : (
-                  // Fallback to email if no fullName
-                  user.email.split('@')[0].split(/[._-]/)[0]
-                )
-              ) : 'Mentor'}! Please find your current progress for your assigned students below. Click on each row to see more information about their Goals / Experience, etc
-            </p>
+            <div className="inline-flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-blue-500"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <p className="text-sm text-blue-700">
+                Hi {user ? (
+                  user.fullName ? (
+                    // Use first word from fullName if available
+                    user.fullName.trim().split(/\s+/)[0]
+                  ) : (
+                    // Fallback to email if no fullName
+                    user.email.split('@')[0].split(/[._-]/)[0]
+                  )
+                ) : 'Mentor'}! Click on any student to view more detailed information about their goals and experiences.
+              </p>
+            </div>
           </div>
           <Button className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0">
             Submit Attendance
@@ -331,12 +413,26 @@ export default function AttendanceTracker() {
         </div>
         
         <Tabs defaultValue="10-session" className="w-full">
-          <TabsList className="mb-6 bg-gray-100 p-1 rounded-md">
-            <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
-            <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
-            <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
-            <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-6 bg-gray-100 p-1 rounded-md">
+            <TabsList className="bg-transparent">
+              <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
+              <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
+              <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
+            </TabsList>
+            <div className="relative mr-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-500" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search students..."
+                className="pl-10 pr-4 py-1.5 text-sm rounded-md border-0 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none w-[200px]"
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
+          </div>
           
           {/* 10-Session Students Tab */}
           <TabsContent value="10-session">
@@ -361,10 +457,34 @@ export default function AttendanceTracker() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead className="w-[180px]">
+                            <button 
+                              onClick={() => handleSort('name')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Student name</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('name')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>Meeting Link</TableHead>
-                          <TableHead>Deadline</TableHead>
-                          <TableHead>Sessions completed</TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('deadline')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Deadline</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('deadline')}</div>
+                            </button>
+                          </TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('sessionsCompleted')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Sessions completed</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('sessionsCompleted')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>1</TableHead>
                           <TableHead>2</TableHead>
                           <TableHead>3</TableHead>
@@ -378,7 +498,7 @@ export default function AttendanceTracker() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {tenSessionStudents.map((student, index) => (
+                        {filteredAndSortedTenSessionStudents.map((student, index) => (
                           <TableRow 
                             key={index} 
                             className="hover:bg-gray-50 cursor-pointer"
@@ -460,17 +580,41 @@ export default function AttendanceTracker() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead className="w-[180px]">
+                            <button 
+                              onClick={() => handleSort('name')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Student name</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('name')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>Meeting Link</TableHead>
-                          <TableHead>Deadline</TableHead>
-                          <TableHead>Sessions completed</TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('deadline')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Deadline</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('deadline')}</div>
+                            </button>
+                          </TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('sessionsCompleted')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Sessions completed</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('sessionsCompleted')}</div>
+                            </button>
+                          </TableHead>
                           {Array.from({ length: 25 }, (_, i) => (
                             <TableHead key={i}>{i + 1}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {twentyFiveSessionStudents.map((student, index) => (
+                        {filteredAndSortedTwentyFiveSessionStudents.map((student, index) => (
                           <TableRow 
                             key={index} 
                             className="hover:bg-gray-50 cursor-pointer"
