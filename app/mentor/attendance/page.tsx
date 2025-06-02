@@ -60,9 +60,9 @@ export default function AttendanceTracker() {
   // Function to format text with dashes by adding line breaks and ensuring all paragraphs start with dashes
   // Column headers from spreadsheet
   const preProgramHeaders = {
+    l1: "Project Track",
     j1: "Additional Goals",
-    k1: "Requested Areas of Support",
-    l1: "Project Track"
+    k1: "Requested Areas of Support"
   };
 
   const preAssessmentHeaders = {
@@ -73,6 +73,11 @@ export default function AttendanceTracker() {
 
   const formatDashedText = (text: string | undefined, isPreProgram = true) => {
     if (!text) return '';
+    
+    // Check if this is a survey message - if so, return it directly without additional formatting
+    if (text.includes('Please encourage') && text.includes('Pre-Program Survey')) {
+      return text;
+    }
     
     // Split the text by line breaks or dash prefixes
     const parts = text.split(/\n+|(?=- )/).filter(part => part.trim());
@@ -525,9 +530,9 @@ export default function AttendanceTracker() {
           <TabsContent value="completed">
             <Card>
               <CardHeader>
-                <CardTitle>Completed Students</CardTitle>
+                <CardTitle>Continuing Students</CardTitle>
                 <CardDescription>
-                  Students who have completed their program
+                  Students continuing beyond their initial program
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -555,7 +560,7 @@ export default function AttendanceTracker() {
                           <TableCell>{student.grade}</TableCell>
                           <TableCell>{student.experience}</TableCell>
                           <TableCell>{student.goals}</TableCell>
-                          <TableCell>{student.totalSessionsCompleted}</TableCell>
+                          <TableCell>{student.sessionsCompleted}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -569,9 +574,9 @@ export default function AttendanceTracker() {
           <TabsContent value="continuing">
             <Card>
               <CardHeader>
-                <CardTitle>Continuing Students</CardTitle>
+                <CardTitle>Completed Students</CardTitle>
                 <CardDescription>
-                  Students continuing beyond their initial program
+                  Students who have completed their program
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -583,13 +588,12 @@ export default function AttendanceTracker() {
                       <TableHead>Experience</TableHead>
                       <TableHead>Goals</TableHead>
                       <TableHead>Sessions Completed</TableHead>
-                      <TableHead>Sessions Remaining</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {continuingStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                        <TableCell colSpan={5} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
@@ -601,7 +605,6 @@ export default function AttendanceTracker() {
                           <TableCell>{student.experience}</TableCell>
                           <TableCell>{student.goals}</TableCell>
                           <TableCell>{student.sessionsCompleted}</TableCell>
-                          <TableCell>{student.sessionsRemaining}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -655,16 +658,18 @@ export default function AttendanceTracker() {
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center mt-4 mb-4">
-                  <h4 className="font-medium">Dedicated Meeting Link</h4>
-                  <Link 
-                    href={selectedStudent.meetingLink || '#'} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {selectedStudent.meetingLink || 'No meeting link available'}
-                  </Link>
+                <div className="bg-gray-100 p-4 rounded-md mt-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Dedicated Meeting Link</h4>
+                    <Link 
+                      href={selectedStudent.meetingLink || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline font-bold"
+                    >
+                      {selectedStudent.meetingLink || 'No meeting link available'}
+                    </Link>
+                  </div>
                 </div>
                 
                 <div className="bg-gray-100 p-4 rounded-md">
@@ -678,37 +683,42 @@ export default function AttendanceTracker() {
                   <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available', true) }} />
                 </div>
                 
-                {/* Pre-Program Assessment (Collapsible) */}
-                <div className="bg-gray-100 rounded-md overflow-hidden">
-                  <button 
-                    onClick={() => {
-                      const element = document.getElementById('pre-assessment-content');
-                      if (element) {
-                        element.classList.toggle('hidden');
-                      }
-                    }}
-                    className="w-full p-4 text-left font-medium flex justify-between items-center"
-                  >
-                    <span>Pre-Program Assessment</span>
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                      className="transform transition-transform duration-200"
-                    >
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </button>
-                  <div id="pre-assessment-content" className="hidden p-4 pt-0 border-t border-gray-200">
-                    <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available', false) }} />
-                  </div>
-                </div>
+                {/* Only show Pre-Program Assessment when not showing survey message */}
+                {!(selectedStudent.preProgramInfo && selectedStudent.preProgramInfo.includes('Please encourage') && selectedStudent.preProgramInfo.includes('Pre-Program Survey')) && (
+                  <>
+                    {/* Pre-Program Assessment (Collapsible) */}
+                    <div className="bg-gray-100 rounded-md overflow-hidden">
+                      <button 
+                        onClick={() => {
+                          const element = document.getElementById('pre-assessment-content');
+                          if (element) {
+                            element.classList.toggle('hidden');
+                          }
+                        }}
+                        className="w-full p-4 text-left font-medium flex justify-between items-center"
+                      >
+                        <span>Pre-Program Assessment</span>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="16" 
+                          height="16" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          className="transform transition-transform duration-200"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </button>
+                      <div id="pre-assessment-content" className="hidden p-4 pt-0">
+                        <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available', false) }} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
