@@ -127,7 +127,7 @@ export default function MentorDashboard() {
           {/* Submit Attendance Forms */}
           <button
             className="rounded-full bg-gradient-to-r from-[#565889] to-[#2f3167] shadow-lg text-white text-xl font-semibold py-8 px-6 flex flex-col items-center justify-center transition-transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[#F29129]/30"
-            onClick={() => router.push('/mentor/attendance')}
+            onClick={() => router.push('/mentor/submit-attendance')}
             style={{ minHeight: '120px' }}
           >
             <span>Submit Attendance Forms</span>

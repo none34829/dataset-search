@@ -407,7 +407,10 @@ export default function AttendanceTracker() {
               </p>
             </div>
           </div>
-          <Button className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0">
+          <Button 
+            className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0"
+            onClick={() => router.push('/mentor/submit-attendance')}
+          >
             Submit Attendance
           </Button>
         </div>
