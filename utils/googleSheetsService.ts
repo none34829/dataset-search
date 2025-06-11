@@ -461,28 +461,11 @@ export async function fetchStudentAttendanceData(forceRefresh = false, sheetName
 
 // Get the 10-session students, optionally filtered by mentor name
 export async function getTenSessionStudents(forceRefresh = false, mentorName?: string): Promise<TenSessionStudent[]> {
-  console.log('\n=== getTenSessionStudents ===');
-  console.log('Mentor name provided:', mentorName || 'None');
-  console.log('Force refresh:', forceRefresh);
-  
   const allStudents = await fetchStudentAttendanceData(forceRefresh);
-  console.log('Total students loaded from sheet:', allStudents?.length || 0);
   
   if (!allStudents || allStudents.length === 0) {
-    console.log('No students found in the sheet');
     return [];
   }
-  
-  // Debug: Log the first few students to verify data structure
-  console.log('\n--- Sample Students (first 3) ---');
-  allStudents.slice(0, 3).forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions} | ` +
-                `Type: ${typeof student.totalSessions}`);
-    console.log('   Raw student object:', JSON.stringify(student, null, 2));
-  });
-  
-  console.log('\n--- Filtering 10-session students ---');
   
   // Include all students from the 10-session sheet
   const allTenSessionStudents = allStudents.filter((student: any) => {
@@ -490,27 +473,8 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
     return student.sessionDates && Array.isArray(student.sessionDates);
   });
   
-  console.log(`\n--- All 10-session students (${allTenSessionStudents.length}) ---`);
-  allTenSessionStudents.forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | ` +
-                `Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions} | ` +
-                `Type: ${typeof student.totalSessions} | ` +
-                `Completed: ${student.sessionsCompleted >= student.totalSessions ? 'Yes' : 'No'}`);
-  });
-  
   // Use all students from the 10-session sheet without filtering by completion status
   let filteredStudents = [...allTenSessionStudents];
-  
-  console.log(`\n--- All 10-session students (${filteredStudents.length}) ---`);
-  filteredStudents.slice(0, 10).forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | ` +
-                `Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions || 'N/A'}`);
-  });
-  if (filteredStudents.length > 10) {
-    console.log(`... and ${filteredStudents.length - 10} more`);
-  }
   
   // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
@@ -526,15 +490,9 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
     };
     
     const normalizedMentorName = normalizeName(mentorName);
-    console.log('\n--- Filtering by mentor ---');
-    console.log('Searching for mentor name:', `"${mentorName}"`);
-    console.log('Normalized search term:', `"${normalizedMentorName}"`);
-    
-    const originalCount = filteredStudents.length;
     
     filteredStudents = filteredStudents.filter((student: any) => {
       if (!student.mentorName) {
-        console.log(`❌ Student "${student.name}" has no mentor name`);
         return false;
       }
       
@@ -542,30 +500,13 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
         // Normalize the stored mentor name
         const storedMentorName = normalizeName(String(student.mentorName));
         
-        // Log the comparison for debugging
-        console.log(`\nComparing mentor names for student "${student.name}":`);
-        console.log(`- Stored: "${storedMentorName}"`);
-        console.log(`- Search: "${normalizedMentorName}"`);
-        
         // Only match if the normalized names match exactly
-        const isMatch = storedMentorName === normalizedMentorName;
-        
-        if (isMatch) {
-          console.log(`✅ MATCHED: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        } else {
-          console.log(`❌ NO MATCH: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        }
-        
-        return isMatch;
+        return storedMentorName === normalizedMentorName;
       } catch (error) {
         console.error(`Error processing mentor name for student "${student.name}":`, error);
         return false;
       }
     });
-    
-    console.log(`Filtered from ${originalCount} to ${filteredStudents.length} students after mentor filter`);
   }
   
   // Ensure we only return the first 10 session dates
@@ -577,23 +518,14 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
 
 // Fetch 25-session student data from Google Sheets (separate function for 25-session students)
 export async function fetch25SessionStudentData(forceRefresh = false): Promise<any> {
-  console.log('\n=== fetch25SessionStudentData ===');
-  console.log('forceRefresh:', forceRefresh);
-  
   const now = Date.now();
   
   try {
-    console.log('Initializing Google Sheets API client...');
     const authClient = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
     // Properly format sheet name
     const formattedSheetName = STUDENTS_25_SHEET_NAME.includes(' ') ? `'${STUDENTS_25_SHEET_NAME}'` : STUDENTS_25_SHEET_NAME;
-    
-    console.log('\n--- Google Sheets Request (25-session sheet) ---');
-    console.log('Spreadsheet ID:', SPREADSHEET_ID);
-    console.log('Sheet name:', STUDENTS_25_SHEET_NAME);
-    console.log('Formatted range:', `${formattedSheetName}!A:BZ`); // Extended range for 25 sessions
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -601,50 +533,26 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
     });
     
     const rows = response.data.values || [];
-    console.log('\n--- 25-Session Data Loaded ---');
-    console.log(`Found ${rows.length} rows in the 25-session sheet (including header)`);
     
     if (rows.length <= 1) { // <= 1 because we expect at least a header row and one data row
-      console.error('No data rows found in the 25-session student sheet');
       return [];
     }
     
     // Get header row for column mapping
     const headers = rows[0];
-    console.log('\n--- 25-Session Sheet Headers ---');
-    console.log(headers.map((header: string, index: number) => `${index}: ${header}`).join('\n'));
     
     // Define column indices - be more flexible with potential header names
     // Log the actual headers to troubleshoot
-    console.log('First few headers exactly as they appear:');
-    for (let i = 0; i < Math.min(headers.length, 5); i++) {
-      console.log(`Header ${i}: '${headers[i]}'`);
-    }
-    
-    // Helper function to find a column by trying multiple possible header variations
-    const findColumn = (possibleNames: string[]): number => {
-      for (const name of possibleNames) {
-        const idx = headers.findIndex((h: string) => 
-          h && typeof h === 'string' && h.trim().toLowerCase() === name.toLowerCase());
-        if (idx !== -1) {
-          console.log(`Found match for '${name}' at index ${idx}: '${headers[idx]}'`);
-          return idx;
-        }
-      }
-      return -1;
-    };
-    
-    // Adjust column mappings based on actual headers in the 25-session sheet
-    const nameColIdx = findColumn(['Student Name', 'Student name', 'student name', 'Name', 'name']);
+    const nameColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'student name');
     // The first column in the sheet is 'Instructor Name' according to the logs
     const mentorColIdx = 0; // Directly use index 0 since we know this is the instructor column
-    const meetingLinkColIdx = findColumn(['Meeting Link', 'meeting link', 'Meeting URL', 'Zoom Link']);
-    const gradeColIdx = findColumn(['Grade', 'grade', 'Student Grade']);
-    const experienceColIdx = findColumn(['Experience', 'experience', 'Coding Experience']);
-    const goalsColIdx = findColumn(['Goals', 'goals', 'Learning Goals']);
-    const deadlineColIdx = findColumn(['Deadline', 'deadline', 'Program Deadline']);
+    const meetingLinkColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'meeting link');
+    const gradeColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'grade');
+    const experienceColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'experience');
+    const goalsColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'goals');
+    const deadlineColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'deadline');
     // Sessions completed count will be calculated manually
-    const sessionsCountColIdx = findColumn(['# Sessions', 'Number of Sessions', 'Sessions']);
+    const sessionsCountColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === '# sessions');
     
     // For 25-session students, map the specific columns as requested
     // Pre-program info columns (j, k, l)
@@ -656,11 +564,6 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
     const assessmentScoreIdx = 12;      // column M (index 12) - Assessment Score
     const definitionPandasIdx = 13;     // column N (index 13) - Definition of Pandas DF
     const reasonTrainTestIdx = 14;      // column O (index 14) - Reason for Train/Test Split
-    
-    console.log('\n--- 25-Session Column Indices ---');
-    console.log('Name column index:', nameColIdx);
-    console.log('Mentor/Instructor column index:', mentorColIdx);
-    console.log('Sessions count column index:', sessionsCountColIdx);
     
     // Find session date columns - for 25 sessions (simply numbered 1-25 in the sheet)
     const sessionColIndices = [];
@@ -680,12 +583,10 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
           `S${i} Date`
         ];
         
-        const idx = findColumn(possibleNames);
+        const idx = headers.findIndex((h: string) => possibleNames.includes(h.trim().toLowerCase()));
         sessionColIndices.push(idx);
       }
     }
-    
-    console.log('Session date column indices:', sessionColIndices);
     
     // In this sheet, we don't have separate completion columns
     // We'll determine completion by checking if there's content in the session cells
@@ -715,12 +616,10 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
             if (isNaN(testDate.getTime()) || dateValue === 'Invalid Date') {
               // Replace invalid date with a dash
               dateValue = '-';
-              console.log(`Invalid date detected in session ${s+1} for student ${row[nameColIdx]}, replacing with dash`);
             }
           } catch (e) {
             // Any parsing error means invalid date
             dateValue = '-';
-            console.log(`Exception parsing date in session ${s+1} for student ${row[nameColIdx]}, replacing with dash`);
           }
           
           // In this sheet, content in the session cell means the session is completed
@@ -825,7 +724,6 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
       students.push(student);
     }
     
-    console.log(`\nSuccessfully processed ${students.length} 25-session students`);
     return students;
     
   } catch (error) {
@@ -836,47 +734,30 @@ export async function fetch25SessionStudentData(forceRefresh = false): Promise<a
 
 // Get the 25-session students, optionally filtered by mentor name
 export async function getTwentyFiveSessionStudents(forceRefresh = false, mentorName?: string): Promise<TwentyFiveSessionStudent[]> {
-  console.log('\n=== getTwentyFiveSessionStudents ===');
-  console.log('Mentor name provided:', mentorName || 'None');
-  
-  // Use the dedicated function for 25-session students
   const students = await fetch25SessionStudentData(forceRefresh);
-  console.log('Total 25-session students loaded from sheet:', students?.length || 0);
   
   if (!students || students.length === 0) {
-    console.log('No 25-session students found in the sheet');
     return [];
   }
   
   // Sample the first few students to debug mentorName access
-  console.log('\n--- Sample Students from 25-session sheet ---');
-  for (let i = 0; i < Math.min(5, students.length); i++) {
-    console.log(`Student ${i}: ${students[i].name}, Mentor: '${students[i].mentorName}'`);
-  }
-  
-  // Filter by mentor name if provided
   let filteredStudents = students;
   
+  // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
     // More permissive mentor name matching
-    console.log('\n--- Filtering 25-session students by mentor ---');
-    console.log('Searching for mentor name:', `"${mentorName}"`);
-    
-    // Use a more permissive approach for matching instructor names
     const simplifyName = (name: string) => {
       // Basic simplification: lowercase, trim spaces, and remove punctuation
       return name?.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '') || '';
     };
     
     const targetMentorSimplified = simplifyName(mentorName);
-    console.log('Simplified search term:', `"${targetMentorSimplified}"`);
     
     // Try multiple matching approaches
     filteredStudents = students.filter((student: any) => {
       const instructorName = student.mentorName || '';
       
       if (!instructorName) {
-        console.log(`❌ Student "${student.name}" has no mentor name`);
         return false;
       }
       
@@ -888,38 +769,23 @@ export async function getTwentyFiveSessionStudents(forceRefresh = false, mentorN
       
       const isMatch = exactMatch || simplifiedMatch || containsMatch;
       
-      if (isMatch) {
-        console.log(`✅ MATCHED: Student "${student.name}" | Mentor: "${instructorName}"`);
-      } else {
-        console.log(`❌ NO MATCH: Student "${student.name}" | Mentor: "${instructorName}"`);
-      }
-      
       return isMatch;
     });
   }
-  
-  console.log(`Found ${filteredStudents.length} 25-session students after filtering`);
   
   return filteredStudents;
 }
 
 // Fetch completed students data from the dedicated Google Sheet
 export async function fetchCompletedStudentsData(forceRefresh = false): Promise<any> {
-  console.log('\n=== fetchCompletedStudentsData ===');
-  console.log('forceRefresh:', forceRefresh);
-  
   const now = Date.now();
   
   // Return cached data if it's fresh and not forced to refresh
   if (!forceRefresh && now - lastCompletedStudentsFetchTime < CACHE_DURATION && cachedCompletedStudentsData) {
-    console.log('Using cached completed students data (last fetched', (now - lastCompletedStudentsFetchTime) / 1000, 'seconds ago)');
     return cachedCompletedStudentsData;
   }
   
-  console.log('Fetching fresh completed students data from Google Sheets...');
-  
   try {
-    console.log('Initializing Google Sheets API client...');
     const authClient = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
@@ -928,28 +794,19 @@ export async function fetchCompletedStudentsData(forceRefresh = false): Promise<
       ? `'${CONTINUING_STUDENTS_SHEET_NAME}'` 
       : CONTINUING_STUDENTS_SHEET_NAME;
     
-    console.log(`Fetching explicitly from CONTINUING_STUDENTS_SHEET_NAME: ${CONTINUING_STUDENTS_SHEET_NAME}`);
-    console.log(`Using sheet: ${formattedSheetName} in spreadsheet ID: ${SPREADSHEET_ID}`);
-    
-    // Get all data from the sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${formattedSheetName}!A:G`, // A-G covers all columns in Completed Students sheet
     });
     
     const rows = response.data.values || [];
-    console.log(`Fetched ${rows.length} rows from Completed Students sheet`);
     
     if (rows.length <= 1) {
-      console.log('No data found in Completed Students sheet or only headers present');
-      cachedCompletedStudentsData = [];
-      lastCompletedStudentsFetchTime = now;
       return [];
     }
     
     // Extract header row to use as keys
     const headers = rows[0].map((header: string) => header.trim());
-    console.log('Completed Students sheet headers:', headers);
     
     // Map data rows to objects using the headers as keys
     const students = rows.slice(1).map((row: string[]) => {
@@ -1005,8 +862,6 @@ export async function fetchCompletedStudentsData(forceRefresh = false): Promise<
       return student;
     }).filter((student: any) => student.name && student.mentorName); // Filter out rows with missing essential data
     
-    console.log(`Processed ${students.length} valid student records from Completed Students sheet`);
-    
     // Update cache
     cachedCompletedStudentsData = students;
     lastCompletedStudentsFetchTime = now;
@@ -1022,18 +877,11 @@ export async function fetchCompletedStudentsData(forceRefresh = false): Promise<
 
 // Get students who have completed their program, optionally filtered by mentor name
 export async function getCompletedStudents(forceRefresh = false, mentorName?: string): Promise<CompletedStudent[]> {
-  // Fetch from the dedicated Completed Students sheet
   const allStudents = await fetchCompletedStudentsData(forceRefresh);
-  console.log('Total completed students loaded from sheet:', allStudents?.length || 0);
   
   if (!allStudents || allStudents.length === 0) {
-    console.log('No completed students found in the sheet');
     return [];
   }
-  
-  // Log all unique mentor names for debugging
-  const allMentorNames = [...new Set(allStudents.map((s: any) => s.mentorName).filter(Boolean))];
-  console.log('All mentor names in Completed Students sheet:', allMentorNames);
   
   let filteredStudents = allStudents;
   
@@ -1068,8 +916,6 @@ export async function getCompletedStudents(forceRefresh = false, mentorName?: st
     });
   }
   
-  console.log(`Found ${filteredStudents.length} completed students after applying filters`);
-  
   return filteredStudents.map((student: any) => ({
     ...student,
     totalSessionsCompleted: student.totalSessionsCompleted || student.totalSessions || 0
@@ -1078,21 +924,14 @@ export async function getCompletedStudents(forceRefresh = false, mentorName?: st
 
 // Fetch continuing students data from the dedicated Google Sheet
 export async function fetchContinuingStudentsData(forceRefresh = false): Promise<any> {
-  console.log('\n=== fetchContinuingStudentsData ===');
-  console.log('forceRefresh:', forceRefresh);
-  
   const now = Date.now();
   
   // Return cached data if it's fresh and not forced to refresh
   if (!forceRefresh && now - lastContinuingStudentsFetchTime < CACHE_DURATION && cachedContinuingStudentsData) {
-    console.log('Using cached continuing students data (last fetched', (now - lastContinuingStudentsFetchTime) / 1000, 'seconds ago)');
     return cachedContinuingStudentsData;
   }
   
-  console.log('Fetching fresh continuing students data from Google Sheets...');
-  
   try {
-    console.log('Initializing Google Sheets API client...');
     const authClient = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
@@ -1101,28 +940,19 @@ export async function fetchContinuingStudentsData(forceRefresh = false): Promise
       ? `'${COMPLETED_STUDENTS_SHEET_NAME}'` 
       : COMPLETED_STUDENTS_SHEET_NAME;
     
-    console.log(`Fetching explicitly from COMPLETED_STUDENTS_SHEET_NAME: ${COMPLETED_STUDENTS_SHEET_NAME}`);
-    console.log(`Using sheet: ${formattedSheetName} in spreadsheet ID: ${SPREADSHEET_ID}`);
-    
-    // Get all data from the sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
       range: `${formattedSheetName}!A:H`, // A-H covers all columns in Continuing Students sheet
     });
     
     const rows = response.data.values || [];
-    console.log(`Fetched ${rows.length} rows from Continuing Students sheet`);
     
     if (rows.length <= 1) {
-      console.log('No data found in Continuing Students sheet or only headers present');
-      cachedContinuingStudentsData = [];
-      lastContinuingStudentsFetchTime = now;
       return [];
     }
     
     // Extract header row to use as keys
     const headers = rows[0].map((header: string) => header.trim());
-    console.log('Continuing Students sheet headers:', headers);
     
     // Map data rows to objects using the headers as keys
     const students = rows.slice(1).map((row: string[]) => {
@@ -1171,8 +1001,6 @@ export async function fetchContinuingStudentsData(forceRefresh = false): Promise
       return student;
     }).filter((student: any) => student.name && student.mentorName); // Filter out rows with missing essential data
     
-    console.log(`Processed ${students.length} valid student records from Continuing Students sheet`);
-    
     // Update cache
     cachedContinuingStudentsData = students;
     lastContinuingStudentsFetchTime = now;
@@ -1188,12 +1016,9 @@ export async function fetchContinuingStudentsData(forceRefresh = false): Promise
 
 // Get students who are continuing beyond their initial program, optionally filtered by mentor name
 export async function getContinuingStudents(forceRefresh = false, mentorName?: string): Promise<ContinuingStudent[]> {
-  // Fetch from the dedicated Continuing Students sheet
   const allStudents = await fetchContinuingStudentsData(forceRefresh);
-  console.log('Total continuing students loaded from sheet:', allStudents?.length || 0);
   
   if (!allStudents || allStudents.length === 0) {
-    console.log('No continuing students found in the sheet');
     return [];
   }
   

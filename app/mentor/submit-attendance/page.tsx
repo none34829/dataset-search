@@ -9,6 +9,12 @@ import { CustomCalendar } from "@/components/ui/custom-calendar";
 // Importing and using native Date formatting instead of date-fns
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  getTenSessionStudents,
+  getTwentyFiveSessionStudents,
+  getCompletedStudents,
+  getContinuingStudents
+} from "@/utils/googleSheetsService";
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -28,11 +34,8 @@ export default function SubmitAttendance() {
   const router = useRouter();
   const studentDropdownRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [students, setStudents] = useState<Student[]>([
-    { id: '1', name: 'Student Name 1' },
-    { id: '2', name: 'Student Name 2' },
-    { id: '3', name: 'Jacob' },
-  ]);
+  const [students, setStudents] = useState<Student[]>([]); // Empty array initially, will be populated from sheets
+  const [loading, setLoading] = useState<boolean>(false); // Loading state for students fetch
   const [selectedStudent, setSelectedStudent] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -65,6 +68,156 @@ export default function SubmitAttendance() {
   const [exitTicket, setExitTicket] = useState<string>('');
   const [progressDescription, setProgressDescription] = useState<string>('');
   
+  // Function to fetch fresh student data in the background
+  const fetchFreshStudentData = async (mentorName: string) => {
+    try {
+      // Force refresh = true to bypass any API-level caching
+      const [tenSessionStudents, twentyFiveSessionStudents, completedStudents, continuingStudents] = await Promise.all([
+        getTenSessionStudents(true, mentorName),
+        getTwentyFiveSessionStudents(true, mentorName),
+        getCompletedStudents(true, mentorName),
+        getContinuingStudents(true, mentorName)
+      ]);
+
+      // Transform and process as usual
+      const allStudents: Student[] = [
+        ...tenSessionStudents.map((student, index) => ({
+          id: `10_${index}`,
+          name: student.name
+        })),
+        ...twentyFiveSessionStudents.map((student, index) => ({
+          id: `25_${index}`,
+          name: student.name
+        })),
+        ...continuingStudents.map((student, index) => ({
+          id: `cont_${index}`,
+          name: student.name
+        })),
+        ...completedStudents.map((student, index) => ({
+          id: `comp_${index}`,
+          name: student.name
+        }))
+      ];
+
+      // Remove duplicates
+      const uniqueStudents = Array.from(new Map(allStudents.map(student => 
+        [student.name, student]
+      )).values());
+
+      // Always use the fetched students, even if empty
+      console.log(`Background fetch: Found ${uniqueStudents.length} students for mentor ${mentorName}`);
+      setStudents(uniqueStudents);
+      cacheStudents(mentorName, uniqueStudents);
+    } catch (error) {
+      console.error('Background refresh error:', error);
+    }
+  };
+  
+  // Cache key for localStorage
+  const getCacheKey = (mentorName: string) => `mentor_students_${mentorName.replace(/\s+/g, '_').toLowerCase()}`;
+  
+  // Try to get students from cache
+  const getCachedStudents = (mentorName: string): Student[] | null => {
+    try {
+      const cacheKey = getCacheKey(mentorName);
+      const cachedData = localStorage.getItem(cacheKey);
+      if (cachedData) {
+        const { students, timestamp } = JSON.parse(cachedData);
+        // Cache is valid for a short time (5 minutes) to avoid hammering the API
+        // but refresh frequently enough to catch new student assignments
+        if (Date.now() - timestamp < 5 * 60 * 1000) {
+          console.log('Using cached students data');
+          return students;
+        }
+      }
+    } catch (error) {
+      console.error('Error reading from cache:', error);
+    }
+    return null;
+  };
+  
+  // Save students to cache
+  const cacheStudents = (mentorName: string, students: Student[]) => {
+    try {
+      const cacheKey = getCacheKey(mentorName);
+      localStorage.setItem(cacheKey, JSON.stringify({
+        students,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
+  };
+
+  // Fetch students for the current mentor from all sheets
+  const fetchStudentsForMentor = async (mentorName: string) => {
+    // Try to get cached students first for immediate display
+    const cachedStudents = getCachedStudents(mentorName);
+    if (cachedStudents) {
+      setStudents(cachedStudents);
+      // Even with valid cache, always fetch fresh data in background
+      // This ensures we eventually get new students while still being responsive
+      setTimeout(() => fetchFreshStudentData(mentorName), 100);
+      return;
+    }
+    
+    // No defaults, just show empty list while loading
+    setStudents([]);
+    setLoading(true);
+    
+    try {
+      // Fetch all student types in parallel with Promise.all
+      const [tenSessionStudents, twentyFiveSessionStudents, completedStudents, continuingStudents] = await Promise.all([
+        getTenSessionStudents(false, mentorName),
+        getTwentyFiveSessionStudents(false, mentorName),
+        getCompletedStudents(false, mentorName),
+        getContinuingStudents(false, mentorName)
+      ]);
+
+      // Transform all student data into the format needed for the dropdown
+      const allStudents: Student[] = [
+        // 10-Session Students
+        ...tenSessionStudents.map((student, index) => ({
+          id: `10_${index}`,
+          name: student.name
+        })),
+        // 25-Session Students
+        ...twentyFiveSessionStudents.map((student, index) => ({
+          id: `25_${index}`,
+          name: student.name
+        })),
+        // Continuing Students
+        ...continuingStudents.map((student, index) => ({
+          id: `cont_${index}`,
+          name: student.name
+        })),
+        // Completed students
+        ...completedStudents.map((student, index) => ({
+          id: `comp_${index}`,
+          name: student.name
+        }))
+      ];
+
+      // Remove any duplicates (in case a student appears in multiple sheets)
+      const uniqueStudents = Array.from(new Map(allStudents.map(student => 
+        [student.name, student]
+      )).values());
+
+      console.log(`Fetched ${uniqueStudents.length} students for mentor ${mentorName}`);
+      
+      // Set students or use fallback if none found
+      // Always use the fetched students, even if empty
+      setStudents(uniqueStudents);
+      // Cache the results for future use
+      cacheStudents(mentorName, uniqueStudents);
+    } catch (error) {
+      console.error('Error fetching students for mentor:', error);
+      // Keep the default students we already set
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Load user info from localStorage
     const userStr = localStorage.getItem('user');
@@ -86,6 +239,15 @@ export default function SubmitAttendance() {
       }
       
       setUser(parsedUser);
+      
+      // Fetch students for this mentor
+      if (parsedUser.fullName) {
+        fetchStudentsForMentor(parsedUser.fullName);
+      } else if (parsedUser.email) {
+        // If fullName is not available, use email as a fallback
+        const nameFromEmail = parsedUser.email.split('@')[0];
+        fetchStudentsForMentor(nameFromEmail);
+      }
     } catch (error) {
       console.error('Error parsing user from localStorage:', error);
       router.push('/');
@@ -255,7 +417,15 @@ export default function SubmitAttendance() {
                   
                   {isDropdownOpen && (
                     <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto max-h-60">
-                      {filteredStudents.length > 0 ? (
+                      {loading ? (
+                        <div className="py-2 pl-3 pr-9 text-gray-500 flex items-center">
+                          <svg className="animate-spin h-4 w-4 mr-2 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Loading students...
+                        </div>
+                      ) : filteredStudents.length > 0 ? (
                         filteredStudents.map((student) => (
                           <div
                             key={student.id}
