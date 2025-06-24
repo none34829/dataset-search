@@ -420,8 +420,8 @@ export default function AttendanceTracker() {
             <TabsList className="bg-transparent">
               <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
               <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
-              <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
-              <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
+              <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
             </TabsList>
             <div className="relative mr-2">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -677,9 +677,9 @@ export default function AttendanceTracker() {
           <TabsContent value="completed">
             <Card>
               <CardHeader>
-                <CardTitle>Continuing Students</CardTitle>
+                <CardTitle>Completed Students</CardTitle>
                 <CardDescription>
-                  Students continuing beyond their initial program
+                  Students who have completed their program
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -707,7 +707,7 @@ export default function AttendanceTracker() {
                           <TableCell>{student.grade}</TableCell>
                           <TableCell>{student.experience}</TableCell>
                           <TableCell>{student.goals}</TableCell>
-                          <TableCell>{student.sessionsCompleted}</TableCell>
+                          <TableCell>{student.totalSessionsCompleted}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -721,9 +721,9 @@ export default function AttendanceTracker() {
           <TabsContent value="continuing">
             <Card>
               <CardHeader>
-                <CardTitle>Completed Students</CardTitle>
+                <CardTitle>Continuing Students</CardTitle>
                 <CardDescription>
-                  Students who have completed their program
+                  Students continuing beyond their initial program
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -734,13 +734,14 @@ export default function AttendanceTracker() {
                       <TableHead>Grade</TableHead>
                       <TableHead>Experience</TableHead>
                       <TableHead>Goals</TableHead>
-                      <TableHead>Sessions Completed</TableHead>
+                      <TableHead>Sessions Continuing For</TableHead>
+                      <TableHead>Sessions Held</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {continuingStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
@@ -751,7 +752,8 @@ export default function AttendanceTracker() {
                           <TableCell>{student.grade}</TableCell>
                           <TableCell>{student.experience}</TableCell>
                           <TableCell>{student.goals}</TableCell>
-                          <TableCell>{student.sessionsCompleted}</TableCell>
+                          <TableCell>{student.sessionsContinuingFor}</TableCell>
+                          <TableCell>{student.sessionsHeld}</TableCell>
                         </TableRow>
                       ))
                     )}

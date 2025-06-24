@@ -33,6 +33,8 @@ export interface CompletedStudent extends BaseStudentData {
 
 export interface ContinuingStudent extends BaseStudentData {
   sessionsRemaining: number;
+  sessionsContinuingFor?: number;
+  sessionsHeld?: number;
 }
 
 // Constants
@@ -790,9 +792,9 @@ export async function fetchCompletedStudentsData(forceRefresh = false): Promise<
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
     // Format sheet name for the API call
-    const formattedSheetName = CONTINUING_STUDENTS_SHEET_NAME.includes(' ') 
-      ? `'${CONTINUING_STUDENTS_SHEET_NAME}'` 
-      : CONTINUING_STUDENTS_SHEET_NAME;
+    const formattedSheetName = COMPLETED_STUDENTS_SHEET_NAME.includes(' ') 
+      ? `'${COMPLETED_STUDENTS_SHEET_NAME}'` 
+      : COMPLETED_STUDENTS_SHEET_NAME;
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -841,11 +843,10 @@ export async function fetchCompletedStudentsData(forceRefresh = false): Promise<
             student.totalSessionsCompleted = parseInt(value) || 0;
             break;
           case 'Sessions Continuing For':
-            student.totalSessions = parseInt(value) || 0;
-            student.sessionsRemaining = parseInt(value) || 0;
+            student.sessionsContinuingFor = parseInt(value) || 0;
             break;
           case 'Sessions Held':
-            student.sessionsCompleted = parseInt(value) || 0;
+            student.sessionsHeld = parseInt(value) || 0;
             break;
           default:
             // Handle any other columns that might be added in the future
@@ -936,9 +937,9 @@ export async function fetchContinuingStudentsData(forceRefresh = false): Promise
     const sheets = google.sheets({ version: 'v4', auth: authClient });
     
     // Format sheet name for the API call
-    const formattedSheetName = COMPLETED_STUDENTS_SHEET_NAME.includes(' ') 
-      ? `'${COMPLETED_STUDENTS_SHEET_NAME}'` 
-      : COMPLETED_STUDENTS_SHEET_NAME;
+    const formattedSheetName = CONTINUING_STUDENTS_SHEET_NAME.includes(' ') 
+      ? `'${CONTINUING_STUDENTS_SHEET_NAME}'` 
+      : CONTINUING_STUDENTS_SHEET_NAME;
     
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
@@ -985,6 +986,12 @@ export async function fetchContinuingStudentsData(forceRefresh = false): Promise
             student.totalSessions = parseInt(value) || 0;
             student.sessionsCompleted = parseInt(value) || 0; // For completed students, these values are the same
             student.totalSessionsCompleted = parseInt(value) || 0;
+            break;
+          case 'Sessions Continuing For':
+            student.sessionsContinuingFor = parseInt(value) || 0;
+            break;
+          case 'Sessions Held':
+            student.sessionsHeld = parseInt(value) || 0;
             break;
           default:
             // Handle any other columns that might be added in the future
@@ -1063,6 +1070,8 @@ export async function getContinuingStudents(forceRefresh = false, mentorName?: s
   
   return filteredStudents.map((student: any) => ({
     ...student,
+    sessionsContinuingFor: student.sessionsContinuingFor || 0,
+    sessionsHeld: student.sessionsHeld || 0,
     sessionsRemaining: student.sessionsRemaining || 0
   }));
 }
