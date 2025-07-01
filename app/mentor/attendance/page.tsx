@@ -175,6 +175,8 @@ export default function AttendanceTracker() {
   // Apply both sorting and filtering
   const filteredAndSortedTenSessionStudents = filterStudents(sortStudents(tenSessionStudents));
   const filteredAndSortedTwentyFiveSessionStudents = filterStudents(sortStudents(twentyFiveSessionStudents));
+  const filteredAndSortedCompletedStudents = filterStudents(sortStudents(completedStudents));
+  const filteredAndSortedContinuingStudents = filterStudents(sortStudents(continuingStudents));
   
   useEffect(() => {
     // Load user info from localStorage
@@ -694,14 +696,14 @@ export default function AttendanceTracker() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {completedStudents.length === 0 ? (
+                    {filteredAndSortedCompletedStudents.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
                     ) : (
-                      completedStudents.map((student, index) => (
+                      filteredAndSortedCompletedStudents.map((student, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>{student.grade}</TableCell>
@@ -739,14 +741,14 @@ export default function AttendanceTracker() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {continuingStudents.length === 0 ? (
+                    {filteredAndSortedContinuingStudents.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
                     ) : (
-                      continuingStudents.map((student, index) => (
+                      filteredAndSortedContinuingStudents.map((student, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>{student.grade}</TableCell>
