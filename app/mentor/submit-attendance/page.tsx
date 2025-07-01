@@ -64,9 +64,10 @@ export default function SubmitAttendance() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExcusedAbsence, setIsExcusedAbsence] = useState<boolean | null>(null);
-  const [sessionNumber, setSessionNumber] = useState<string>('3');
   const [exitTicket, setExitTicket] = useState<string>('');
   const [progressDescription, setProgressDescription] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   
   // Function to fetch fresh student data in the background
   const fetchFreshStudentData = async (mentorName: string) => {
@@ -103,6 +104,9 @@ export default function SubmitAttendance() {
       const uniqueStudents = Array.from(new Map(allStudents.map(student => 
         [student.name, student]
       )).values());
+
+      // Sort students by name in ascending order
+      uniqueStudents.sort((a, b) => a.name.localeCompare(b.name));
 
       // Always use the fetched students, even if empty
       console.log(`Background fetch: Found ${uniqueStudents.length} students for mentor ${mentorName}`);
@@ -203,6 +207,9 @@ export default function SubmitAttendance() {
         [student.name, student]
       )).values());
 
+      // Sort students by name in ascending order
+      uniqueStudents.sort((a, b) => a.name.localeCompare(b.name));
+
       console.log(`Fetched ${uniqueStudents.length} students for mentor ${mentorName}`);
       
       // Set students or use fallback if none found
@@ -288,21 +295,54 @@ export default function SubmitAttendance() {
     router.push('/');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
+    setSubmitMessage(null);
+    try {
+      const payload: any = {
+        mentorName: user?.fullName || user?.email.split('@')[0],
+        mentorEmail: user?.email,
+        studentName: selectedStudent,
+        sessionDate: date ? `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` : '',
+        isUnexcusedAbsence: isExcusedAbsence,
+      };
+      if (!isExcusedAbsence) {
+        payload.progressDescription = progressDescription;
+        payload.exitTicket = exitTicket;
+      }
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmitMessage('Attendance submitted successfully!');
+        setSelectedStudent('');
+        setDate(new Date());
+        setIsExcusedAbsence(null);
+        setExitTicket('');
+        setProgressDescription('');
+      } else {
+        setSubmitMessage('Failed to submit attendance: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      setSubmitMessage('Failed to submit attendance: ' + (err.message || 'Unknown error'));
+    } finally {
     // Process form submission
     console.log({
       selectedStudent,
       date,
       isExcusedAbsence,
-      sessionNumber,
       exitTicket,
       progressDescription
     });
     
     // Show success message or redirect
     alert('Attendance submitted successfully!');
-  };
+  }
+}
 
   if (!user) {
     return null;
@@ -507,22 +547,6 @@ export default function SubmitAttendance() {
             </div>
             
             <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Session Number */}
-              <div>
-                <label htmlFor="sessionNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Session Number
-                </label>
-                <input
-                  type="number"
-                  id="sessionNumber"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  value={sessionNumber}
-                  onChange={(e) => setSessionNumber(e.target.value)}
-                  min="1"
-                  max="25"
-                />
-              </div>
-              
               {/* Exit Ticket */}
               <div>
                 <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">
@@ -537,6 +561,7 @@ export default function SubmitAttendance() {
                   onChange={(e) => setExitTicket(e.target.value)}
                 />
               </div>
+              <div></div>
             </div>
             
             {/* Progress Description */}
