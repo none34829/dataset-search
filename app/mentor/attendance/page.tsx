@@ -9,7 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
 
 // Import types only from the service
 import type { 
@@ -58,18 +58,46 @@ const customStyles = `
 
 export default function AttendanceTracker() {
   // Function to format text with dashes by adding line breaks and ensuring all paragraphs start with dashes
-  const formatDashedText = (text: string | undefined) => {
+  // Column headers from spreadsheet
+  const preProgramHeaders = {
+    l1: "Project Track",
+    j1: "Additional Goals",
+    k1: "Requested Areas of Support"
+  };
+
+  const preAssessmentHeaders = {
+    m1: "Assessment Score",
+    n1: "Definition of Pandas DF",
+    o1: "Reason for Train/Test Split"
+  };
+
+  const formatDashedText = (text: string | undefined, isPreProgram = true) => {
     if (!text) return '';
     
-    // Check if the text starts with a dash already
-    let formattedText = text.trim();
-    if (!formattedText.startsWith('- ')) {
-      // Add a dash to the first paragraph
-      formattedText = '- ' + formattedText;
+    // Check if this is a survey message - if so, return it directly without additional formatting
+    if (text.includes('Please encourage') && text.includes('Pre-Program Survey')) {
+      return text;
     }
     
-    // Find all dash-prefixed items and ensure proper spacing between them
-    formattedText = formattedText.replace(/([^\n])\s*- /g, '$1\n\n- ');
+    // Split the text by line breaks or dash prefixes
+    const parts = text.split(/\n+|(?=- )/).filter(part => part.trim());
+    
+    // Get the appropriate headers based on the section
+    const headers = isPreProgram ? Object.values(preProgramHeaders) : Object.values(preAssessmentHeaders);
+    
+    let formattedText = '';
+    
+    // Replace dashes with column headers or use existing structure
+    parts.forEach((part, index) => {
+      const cleanPart = part.replace(/^- /, '');
+      const header = headers[index % headers.length] || `Item ${index + 1}`;
+      formattedText += `<strong>${header}:</strong> ${cleanPart}`;
+      
+      // Add line break between items
+      if (index < parts.length - 1) {
+        formattedText += '<br /><br />';
+      }
+    });
     
     return formattedText;
   };
@@ -82,7 +110,73 @@ export default function AttendanceTracker() {
   const [continuingStudents, setContinuingStudents] = useState<ContinuingStudent[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Function to handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle direction if already sorting by this field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Function to render sort icon
+  const renderSortIcon = (field: string) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400 flex-shrink-0" />;
+    } else if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 text-gray-900 flex-shrink-0" />;
+    } else {
+      return <ArrowDown className="h-4 w-4 text-gray-900 flex-shrink-0" />;
+    }
+  };
+
+  // Function to handle student search
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  // Function to sort students based on current sort field and direction
+  const sortStudents = (students: any[]) => {
+    return [...students].sort((a, b) => {
+      if (sortField === 'name') {
+        return sortDirection === 'asc' 
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      } else if (sortField === 'deadline') {
+        const dateA = a.deadline ? new Date(a.deadline).getTime() : 0;
+        const dateB = b.deadline ? new Date(b.deadline).getTime() : 0;
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (sortField === 'sessionsCompleted') {
+        const sessionsA = a.sessionsCompleted || 0;
+        const sessionsB = b.sessionsCompleted || 0;
+        return sortDirection === 'asc' ? sessionsA - sessionsB : sessionsB - sessionsA;
+      }
+      return 0;
+    });
+  };
+  
+  // Function to filter students based on search term
+  const filterStudents = (students: any[]) => {
+    if (!searchTerm.trim()) return students;
+    
+    return students.filter(student => 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+  
+  // Apply both sorting and filtering
+  const filteredAndSortedTenSessionStudents = filterStudents(sortStudents(tenSessionStudents));
+  const filteredAndSortedTwentyFiveSessionStudents = filterStudents(sortStudents(twentyFiveSessionStudents));
+  const filteredAndSortedCompletedStudents = filterStudents(sortStudents(completedStudents));
+  const filteredAndSortedContinuingStudents = filterStudents(sortStudents(continuingStudents));
   
   useEffect(() => {
     // Load user info from localStorage
@@ -285,30 +379,65 @@ export default function AttendanceTracker() {
         {/* Mentor greeting and submit attendance button */}
         <div className="flex justify-between items-center mb-6 mt-2">
           <div>
-            <p className="text-gray-700">
-              Hi {user ? (
-                user.fullName ? (
-                  // Use first word from fullName if available
-                  user.fullName.trim().split(/\s+/)[0]
-                ) : (
-                  // Fallback to email if no fullName
-                  user.email.split('@')[0].split(/[._-]/)[0]
-                )
-              ) : 'Mentor'}! Please find your current progress for your assigned students below. Click on each row to see more information about their Goals / Experience, etc
-            </p>
+            <div className="inline-flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-blue-500"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <p className="text-sm text-blue-700">
+                Hi {user ? (
+                  user.fullName ? (
+                    // Use first word from fullName if available
+                    user.fullName.trim().split(/\s+/)[0]
+                  ) : (
+                    // Fallback to email if no fullName
+                    user.email.split('@')[0].split(/[._-]/)[0]
+                  )
+                ) : 'Mentor'}! Click on any student to view more detailed information about their goals and experiences.
+              </p>
+            </div>
           </div>
-          <Button className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0">
+          <Button 
+            className="rounded-full px-6 bg-[rgba(86,88,137,0.1)] text-[#565889] hover:bg-[rgba(86,88,137,0.2)] border-0"
+            onClick={() => router.push('/mentor/submit-attendance')}
+          >
             Submit Attendance
           </Button>
         </div>
         
         <Tabs defaultValue="10-session" className="w-full">
-          <TabsList className="mb-6 bg-gray-100 p-1 rounded-md">
-            <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
-            <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
-            <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
-            <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-6 bg-gray-100 p-1 rounded-md">
+            <TabsList className="bg-transparent">
+              <TabsTrigger value="10-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">10 Session Students</TabsTrigger>
+              <TabsTrigger value="25-session" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">25 Session Students</TabsTrigger>
+              <TabsTrigger value="continuing" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Continuing Students</TabsTrigger>
+              <TabsTrigger value="completed" className="rounded-md px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">Completed Students</TabsTrigger>
+            </TabsList>
+            <div className="relative mr-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-500" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search students..."
+                className="pl-10 pr-4 py-1.5 text-sm rounded-md border-0 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none w-[200px]"
+                value={searchTerm}
+                onChange={handleSearch}
+              />
+            </div>
+          </div>
           
           {/* 10-Session Students Tab */}
           <TabsContent value="10-session">
@@ -333,10 +462,34 @@ export default function AttendanceTracker() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead className="w-[180px]">
+                            <button 
+                              onClick={() => handleSort('name')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Student name</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('name')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>Meeting Link</TableHead>
-                          <TableHead>Deadline</TableHead>
-                          <TableHead>Sessions completed</TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('deadline')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Deadline</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('deadline')}</div>
+                            </button>
+                          </TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('sessionsCompleted')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Sessions completed</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('sessionsCompleted')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>1</TableHead>
                           <TableHead>2</TableHead>
                           <TableHead>3</TableHead>
@@ -350,7 +503,7 @@ export default function AttendanceTracker() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {tenSessionStudents.map((student, index) => (
+                        {filteredAndSortedTenSessionStudents.map((student, index) => (
                           <TableRow 
                             key={index} 
                             className="hover:bg-gray-50 cursor-pointer"
@@ -368,7 +521,7 @@ export default function AttendanceTracker() {
                                 className="text-blue-600 hover:underline" 
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                Join
+                                {student.meetingLink || 'No meeting link available'}
                               </Link>
                             </TableCell>
                             <TableCell>{student.deadline ? new Date(student.deadline).toLocaleDateString('en-US') : 'N/A'}</TableCell>
@@ -432,19 +585,41 @@ export default function AttendanceTracker() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[180px]">Student name</TableHead>
+                          <TableHead className="w-[180px]">
+                            <button 
+                              onClick={() => handleSort('name')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Student name</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('name')}</div>
+                            </button>
+                          </TableHead>
                           <TableHead>Meeting Link</TableHead>
-                          <TableHead>Deadline</TableHead>
-                          <TableHead>Sessions completed</TableHead>
-                          <TableHead>1</TableHead>
-                          <TableHead>2</TableHead>
-                          <TableHead>3</TableHead>
-                          <TableHead>4</TableHead>
-                          <TableHead>5</TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('deadline')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Deadline</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('deadline')}</div>
+                            </button>
+                          </TableHead>
+                          <TableHead>
+                            <button 
+                              onClick={() => handleSort('sessionsCompleted')} 
+                              className="flex items-center justify-between w-full focus:outline-none space-x-2"
+                            >
+                              <span>Sessions completed</span>
+                              <div className="flex-shrink-0 w-4">{renderSortIcon('sessionsCompleted')}</div>
+                            </button>
+                          </TableHead>
+                          {Array.from({ length: 25 }, (_, i) => (
+                            <TableHead key={i}>{i + 1}</TableHead>
+                          ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {twentyFiveSessionStudents.map((student, index) => (
+                        {filteredAndSortedTwentyFiveSessionStudents.map((student, index) => (
                           <TableRow 
                             key={index} 
                             className="hover:bg-gray-50 cursor-pointer"
@@ -455,7 +630,7 @@ export default function AttendanceTracker() {
                           >
                             <TableCell className="font-medium">{student.name}</TableCell>
                             <TableCell>
-                              <Link href="#" className="text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>Join</Link>
+                              <Link href={student.meetingLink || '#'} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{student.meetingLink || 'No meeting link available'}</Link>
                             </TableCell>
                             <TableCell>{new Date(student.deadline).toLocaleDateString('en-US')}</TableCell>
                             <TableCell>{student.sessionsCompleted}/25</TableCell>
@@ -468,7 +643,7 @@ export default function AttendanceTracker() {
                               let displayText = '-';
                               let className = 'text-gray-400';
                               
-                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '') {
+                              if (sessionDate && sessionDate !== 'Not completed' && sessionDate.trim() !== '' && !isNaN(new Date(sessionDate).getTime())) {
                                 if (isFuture) {
                                   displayText = 'Scheduled';
                                   className = 'text-blue-600';
@@ -521,14 +696,14 @@ export default function AttendanceTracker() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {completedStudents.length === 0 ? (
+                    {filteredAndSortedCompletedStudents.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
                     ) : (
-                      completedStudents.map((student, index) => (
+                      filteredAndSortedCompletedStudents.map((student, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>{student.grade}</TableCell>
@@ -561,26 +736,26 @@ export default function AttendanceTracker() {
                       <TableHead>Grade</TableHead>
                       <TableHead>Experience</TableHead>
                       <TableHead>Goals</TableHead>
-                      <TableHead>Sessions Completed</TableHead>
-                      <TableHead>Sessions Remaining</TableHead>
+                      <TableHead>Sessions Continuing For</TableHead>
+                      <TableHead>Sessions Held</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {continuingStudents.length === 0 ? (
+                    {filteredAndSortedContinuingStudents.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-4 text-gray-500">
                           No students found in this category
                         </TableCell>
                       </TableRow>
                     ) : (
-                      continuingStudents.map((student, index) => (
+                      filteredAndSortedContinuingStudents.map((student, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>{student.grade}</TableCell>
                           <TableCell>{student.experience}</TableCell>
                           <TableCell>{student.goals}</TableCell>
-                          <TableCell>{student.sessionsCompleted}</TableCell>
-                          <TableCell>{student.sessionsRemaining}</TableCell>
+                          <TableCell>{student.sessionsContinuingFor}</TableCell>
+                          <TableCell>{student.sessionsHeld}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -634,16 +809,18 @@ export default function AttendanceTracker() {
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center mt-4 mb-4">
-                  <h4 className="font-medium">Dedicated Meeting Link</h4>
-                  <Link 
-                    href={selectedStudent.meetingLink || '#'} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    Open Meeting Link
-                  </Link>
+                <div className="bg-gray-100 p-4 rounded-md mt-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Dedicated Meeting Link</h4>
+                    <Link 
+                      href={selectedStudent.meetingLink || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline font-bold"
+                    >
+                      {selectedStudent.meetingLink || 'No meeting link available'}
+                    </Link>
+                  </div>
                 </div>
                 
                 <div className="bg-gray-100 p-4 rounded-md">
@@ -654,40 +831,45 @@ export default function AttendanceTracker() {
                 {/* Pre-Program Information */}
                 <div className="bg-gray-100 p-4 rounded-md">
                   <h4 className="font-medium mb-2">Pre-Program Information</h4>
-                  <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available').replace(/\n/g, '<br />') }} />
+                  <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preProgramInfo || 'No pre-program information available', true) }} />
                 </div>
                 
-                {/* Pre-Program Assessment (Collapsible) */}
-                <div className="bg-gray-100 rounded-md overflow-hidden">
-                  <button 
-                    onClick={() => {
-                      const element = document.getElementById('pre-assessment-content');
-                      if (element) {
-                        element.classList.toggle('hidden');
-                      }
-                    }}
-                    className="w-full p-4 text-left font-medium flex justify-between items-center"
-                  >
-                    <span>Pre-Program Assessment</span>
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="16" 
-                      height="16" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
-                      className="transform transition-transform duration-200"
-                    >
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </button>
-                  <div id="pre-assessment-content" className="hidden p-4 pt-0 border-t border-gray-200">
-                    <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available').replace(/\n/g, '<br />') }} />
-                  </div>
-                </div>
+                {/* Only show Pre-Program Assessment when not showing survey message */}
+                {!(selectedStudent.preProgramInfo && selectedStudent.preProgramInfo.includes('Please encourage') && selectedStudent.preProgramInfo.includes('Pre-Program Survey')) && (
+                  <>
+                    {/* Pre-Program Assessment (Collapsible) */}
+                    <div className="bg-gray-100 rounded-md overflow-hidden">
+                      <button 
+                        onClick={() => {
+                          const element = document.getElementById('pre-assessment-content');
+                          if (element) {
+                            element.classList.toggle('hidden');
+                          }
+                        }}
+                        className="w-full p-4 text-left font-medium flex justify-between items-center"
+                      >
+                        <span>Pre-Program Assessment</span>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          width="16" 
+                          height="16" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          className="transform transition-transform duration-200"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </button>
+                      <div id="pre-assessment-content" className="hidden p-4 pt-0">
+                        <p dangerouslySetInnerHTML={{ __html: formatDashedText(selectedStudent.preAssessmentInfo || 'No pre-assessment information available', false) }} />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

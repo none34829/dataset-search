@@ -42,6 +42,8 @@ export interface CompletedStudent extends BaseStudent {
 export interface ContinuingStudent extends BaseStudent {
   sessionsCompleted: number;
   sessionsRemaining: number;
+  sessionsContinuingFor: number;
+  sessionsHeld: number;
 }
 
 // Function to convert Google Sheets data format to our app's format
@@ -109,7 +111,9 @@ export async function getContinuingStudents(): Promise<ContinuingStudent[]> {
       experience: student.experience,
       goals: student.goals,
       sessionsCompleted: student.sessionsCompleted,
-      sessionsRemaining: student.sessionsRemaining
+      sessionsRemaining: student.sessionsRemaining,
+      sessionsContinuingFor: student.sessionsContinuingFor || 0,
+      sessionsHeld: student.sessionsHeld || 0
     }));
   } catch (error) {
     console.error('Error fetching continuing students:', error);
@@ -287,7 +291,9 @@ function getMockContinuingStudents(): ContinuingStudent[] {
       experience: "Some Python, new to AI",
       goals: "Understanding AI ethics and implementation",
       sessionsCompleted: 10,
-      sessionsRemaining: 15
+      sessionsRemaining: 15,
+      sessionsContinuingFor: 25,
+      sessionsHeld: 10
     },
     {
       name: "Ethan Taylor",
@@ -295,7 +301,9 @@ function getMockContinuingStudents(): ContinuingStudent[] {
       experience: "Advanced in multiple languages",
       goals: "Build a computer vision project",
       sessionsCompleted: 15,
-      sessionsRemaining: 10
+      sessionsRemaining: 10,
+      sessionsContinuingFor: 25,
+      sessionsHeld: 15
     }
   ];
 }

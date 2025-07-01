@@ -28,23 +28,33 @@ export interface TwentyFiveSessionStudent extends BaseStudentData {
 
 export interface CompletedStudent extends BaseStudentData {
   totalSessionsCompleted: number;
+  sessionsHeld?: number;
 }
 
 export interface ContinuingStudent extends BaseStudentData {
   sessionsRemaining: number;
+  sessionsContinuingFor?: number;
+  sessionsHeld?: number;
 }
 
 // Constants
 const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID || '1fkXcAsoZUIpu56XjyKQv2S5OTboYhVhwttGQCCadiFo';
 const STUDENTS_SHEET_NAME = process.env.GOOGLE_SHEETS_STUDENTS_TAB || '10-Session Student Info';
+const STUDENTS_25_SHEET_NAME = process.env.GOOGLE_SHEETS_STUDENTS_TAB_25 || '25-Session Student Info';
+const COMPLETED_STUDENTS_SHEET_NAME = process.env.GOOGLE_SHEETS_COMPLETED_STUDENTS_TAB || 'Completed Students';
+const CONTINUING_STUDENTS_SHEET_NAME = process.env.GOOGLE_SHEETS_CONTINUING_STUDENTS_TAB || 'Continuing Students';
 const SHEET_NAME = process.env.GOOGLE_SHEETS_TAB || 'Student Passkeys';
 const MENTOR_SHEET_NAME = process.env.GOOGLE_SHEETS_MENTOR_TAB || 'Mentor Passkeys';
 let cachedStudents: { email: string; password: string }[] = [];
 let cachedMentors: { name: string; email: string; passkey: string }[] = [];
 let cachedAttendanceData: any = null;
+let cachedCompletedStudentsData: any = null;
+let cachedContinuingStudentsData: any = null;
 let lastFetchTime = 0;
 let lastMentorFetchTime = 0;
 let lastAttendanceFetchTime = 0;
+let lastCompletedStudentsFetchTime = 0;
+let lastContinuingStudentsFetchTime = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // Initialize the Google Sheets API
@@ -184,8 +194,8 @@ export async function authenticateStudent(email: string, password: string): Prom
   return authenticated;
 }
 
-// Fetch student attendance data from Google Sheets
-export async function fetchStudentAttendanceData(forceRefresh = false): Promise<any> {
+// Fetch student attendance data from Google Sheets (10-session students)
+export async function fetchStudentAttendanceData(forceRefresh = false, sheetName = STUDENTS_SHEET_NAME): Promise<any> {
   console.log('\n=== fetchStudentAttendanceData ===');
   console.log('forceRefresh:', forceRefresh);
   
@@ -295,37 +305,75 @@ export async function fetchStudentAttendanceData(forceRefresh = false): Promise<
       const deadline = getColumnValue(row, ['Deadline', 'deadline', 'Due Date', 'duedate']);
       const totalSessions = parseInt(getColumnValue(row, ['# Sessions', 'sessions', 'Total Sessions', 'Number of Sessions', 'Session Count']) || '10', 10);
       
-      // Get columns J, K, L and combine them for Pre-Program Information
-      const preProgramJ = row[9] || ''; // Column J (0-indexed, so 9)
-      const preProgramK = row[10] || ''; // Column K
-      const preProgramL = row[11] || ''; // Column L
+      // Get the raw data from the columns
+      // We need to extract any content values and filter out the existing labels
+      // The front-end will add the appropriate headers in the correct order
       
-      // Format pre-program information with line breaks before dash-prefixed content
+      // Extract raw values from the Google Sheet columns
+      let projectTrackValue = row[11] || '';    // Column L (index 11) - Project Track
+      let additionalGoalsValue = row[9] || '';  // Column J (index 9) - Additional Goals
+      let requestedSupportValue = row[10] || ''; // Column K (index 10) - Requested Areas of Support
+      
+      // Remove any existing labels to prevent duplication with front-end formatting
+      // These are common patterns in the data that might cause duplication
+      projectTrackValue = projectTrackValue.replace(/^Project Track:?\s*/i, '').trim();
+      additionalGoalsValue = additionalGoalsValue.replace(/^Additional Goals:?\s*/i, '').trim();
+      requestedSupportValue = requestedSupportValue.replace(/^Requested Areas of Support:?\s*/i, '').trim();
+      
+      // Check if any pre-program info is available
+      const hasPreProgramInfo = projectTrackValue || additionalGoalsValue || requestedSupportValue;
+      
+      // Format pre-program information in the exact order required
       let preProgramInfo = '';
-      [preProgramJ, preProgramK, preProgramL].filter(Boolean).forEach((item, index) => {
-        // If the item starts with a dash, add a newline before it
-        if (item.trim().startsWith('-')) {
-          preProgramInfo += (index === 0 ? '' : '\n\n') + item;
-        } else {
-          preProgramInfo += (index === 0 ? '' : ' - ') + item;
-        }
-      });
+      
+      if (hasPreProgramInfo) {
+        // Build the content without adding headers (the frontend will handle this)
+        // Just provide the content values in the desired order
+        const sections = [];
+        
+        // 1. Project Track content only (always first)
+        sections.push(projectTrackValue);
+        
+        // 2. Additional Goals content only (always second)
+        sections.push(additionalGoalsValue);
+        
+        // 3. Requested Areas of Support content only (always last)
+        sections.push(requestedSupportValue);
+        
+        // Filter out any empty sections
+        const nonEmptySections = sections.filter(section => section.trim() !== '');
+        
+        // Join them with double newlines (use the filtered sections)
+        preProgramInfo = nonEmptySections.join('\n\n');
+      } else {
+        // If no pre-program info is available, display a custom message with the student's name
+        preProgramInfo = `Please encourage ${studentName} to fill out the <a href="https://inspiritai.co/1-1-Pre-Program" target="_blank" style="color: #0066cc; text-decoration: underline;">Pre-Program Survey</a>.`;
+      }
       
       // Get columns M, N, O and combine them for Pre-Program Assessment
       const preAssessmentM = row[12] || ''; // Column M
       const preAssessmentN = row[13] || ''; // Column N
       const preAssessmentO = row[14] || ''; // Column O
       
+      // Check if any pre-assessment info is available
+      const hasPreAssessmentInfo = preAssessmentM || preAssessmentN || preAssessmentO;
+      
       // Format pre-assessment information with line breaks before dash-prefixed content
       let preAssessmentInfo = '';
-      [preAssessmentM, preAssessmentN, preAssessmentO].filter(Boolean).forEach((item, index) => {
-        // If the item starts with a dash, add a newline before it
-        if (item.trim().startsWith('-')) {
-          preAssessmentInfo += (index === 0 ? '' : '\n\n') + item;
-        } else {
-          preAssessmentInfo += (index === 0 ? '' : ' - ') + item;
-        }
-      });
+      
+      if (hasPreAssessmentInfo) {
+        [preAssessmentM, preAssessmentN, preAssessmentO].filter(Boolean).forEach((item, index) => {
+          // If the item starts with a dash, add a newline before it
+          if (item.trim().startsWith('-')) {
+            preAssessmentInfo += (index === 0 ? '' : '\n\n') + item;
+          } else {
+            preAssessmentInfo += (index === 0 ? '' : ' - ') + item;
+          }
+        });
+      } else {
+        // If no pre-assessment info is available, display a custom message with the student's name
+        preAssessmentInfo = `Please encourage ${studentName} to fill out the <a href="https://inspiritai.co/1-1-Pre-Program" target="_blank" style="color: #0066cc; text-decoration: underline;">Pre-Program Survey</a>.`;
+      }
       
       console.log('Mapped values:', {
         mentorName,
@@ -418,28 +466,11 @@ export async function fetchStudentAttendanceData(forceRefresh = false): Promise<
 
 // Get the 10-session students, optionally filtered by mentor name
 export async function getTenSessionStudents(forceRefresh = false, mentorName?: string): Promise<TenSessionStudent[]> {
-  console.log('\n=== getTenSessionStudents ===');
-  console.log('Mentor name provided:', mentorName || 'None');
-  console.log('Force refresh:', forceRefresh);
-  
   const allStudents = await fetchStudentAttendanceData(forceRefresh);
-  console.log('Total students loaded from sheet:', allStudents?.length || 0);
   
   if (!allStudents || allStudents.length === 0) {
-    console.log('No students found in the sheet');
     return [];
   }
-  
-  // Debug: Log the first few students to verify data structure
-  console.log('\n--- Sample Students (first 3) ---');
-  allStudents.slice(0, 3).forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions} | ` +
-                `Type: ${typeof student.totalSessions}`);
-    console.log('   Raw student object:', JSON.stringify(student, null, 2));
-  });
-  
-  console.log('\n--- Filtering 10-session students ---');
   
   // Include all students from the 10-session sheet
   const allTenSessionStudents = allStudents.filter((student: any) => {
@@ -447,27 +478,8 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
     return student.sessionDates && Array.isArray(student.sessionDates);
   });
   
-  console.log(`\n--- All 10-session students (${allTenSessionStudents.length}) ---`);
-  allTenSessionStudents.forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | ` +
-                `Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions} | ` +
-                `Type: ${typeof student.totalSessions} | ` +
-                `Completed: ${student.sessionsCompleted >= student.totalSessions ? 'Yes' : 'No'}`);
-  });
-  
   // Use all students from the 10-session sheet without filtering by completion status
   let filteredStudents = [...allTenSessionStudents];
-  
-  console.log(`\n--- All 10-session students (${filteredStudents.length}) ---`);
-  filteredStudents.slice(0, 10).forEach((student: any, index: number) => {
-    console.log(`${index + 1}. ${student.name} | ` +
-                `Mentor: ${student.mentorName} | ` +
-                `Sessions: ${student.sessionsCompleted}/${student.totalSessions || 'N/A'}`);
-  });
-  if (filteredStudents.length > 10) {
-    console.log(`... and ${filteredStudents.length - 10} more`);
-  }
   
   // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
@@ -483,15 +495,9 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
     };
     
     const normalizedMentorName = normalizeName(mentorName);
-    console.log('\n--- Filtering by mentor ---');
-    console.log('Searching for mentor name:', `"${mentorName}"`);
-    console.log('Normalized search term:', `"${normalizedMentorName}"`);
-    
-    const originalCount = filteredStudents.length;
     
     filteredStudents = filteredStudents.filter((student: any) => {
       if (!student.mentorName) {
-        console.log(`❌ Student "${student.name}" has no mentor name`);
         return false;
       }
       
@@ -499,30 +505,13 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
         // Normalize the stored mentor name
         const storedMentorName = normalizeName(String(student.mentorName));
         
-        // Log the comparison for debugging
-        console.log(`\nComparing mentor names for student "${student.name}":`);
-        console.log(`- Stored: "${storedMentorName}"`);
-        console.log(`- Search: "${normalizedMentorName}"`);
-        
         // Only match if the normalized names match exactly
-        const isMatch = storedMentorName === normalizedMentorName;
-        
-        if (isMatch) {
-          console.log(`✅ MATCHED: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        } else {
-          console.log(`❌ NO MATCH: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        }
-        
-        return isMatch;
+        return storedMentorName === normalizedMentorName;
       } catch (error) {
         console.error(`Error processing mentor name for student "${student.name}":`, error);
         return false;
       }
     });
-    
-    console.log(`Filtered from ${originalCount} to ${filteredStudents.length} students after mentor filter`);
   }
   
   // Ensure we only return the first 10 session dates
@@ -532,116 +521,373 @@ export async function getTenSessionStudents(forceRefresh = false, mentorName?: s
   }));
 }
 
+// Fetch 25-session student data from Google Sheets (separate function for 25-session students)
+export async function fetch25SessionStudentData(forceRefresh = false): Promise<any> {
+  const now = Date.now();
+  
+  try {
+    const authClient = await getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+    
+    // Properly format sheet name
+    const formattedSheetName = STUDENTS_25_SHEET_NAME.includes(' ') ? `'${STUDENTS_25_SHEET_NAME}'` : STUDENTS_25_SHEET_NAME;
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${formattedSheetName}!A:BZ`, // Extended range for 25 sessions
+    });
+    
+    const rows = response.data.values || [];
+    
+    if (rows.length <= 1) { // <= 1 because we expect at least a header row and one data row
+      return [];
+    }
+    
+    // Get header row for column mapping
+    const headers = rows[0];
+    
+    // Define column indices - be more flexible with potential header names
+    // Log the actual headers to troubleshoot
+    const nameColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'student name');
+    // The first column in the sheet is 'Instructor Name' according to the logs
+    const mentorColIdx = 0; // Directly use index 0 since we know this is the instructor column
+    const meetingLinkColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'meeting link');
+    const gradeColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'grade');
+    const experienceColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'experience');
+    const goalsColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'goals');
+    const deadlineColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === 'deadline');
+    // Sessions completed count will be calculated manually
+    const sessionsCountColIdx = headers.findIndex((h: string) => h && typeof h === 'string' && h.trim().toLowerCase() === '# sessions');
+    
+    // For 25-session students, map the specific columns as requested
+    // Pre-program info columns (j, k, l)
+    const additionalGoalsIdx = 9;  // column J (index 9) - Additional Goals
+    const requestedAreasIdx = 10; // column K (index 10) - Requested Areas of Support
+    const projectTrackIdx = 11;   // column L (index 11) - Project Track
+    
+    // Pre-assessment columns (m, n, o)
+    const assessmentScoreIdx = 12;      // column M (index 12) - Assessment Score
+    const definitionPandasIdx = 13;     // column N (index 13) - Definition of Pandas DF
+    const reasonTrainTestIdx = 14;      // column O (index 14) - Reason for Train/Test Split
+    
+    // Find session date columns - for 25 sessions (simply numbered 1-25 in the sheet)
+    const sessionColIndices = [];
+    for (let i = 1; i <= 25; i++) {
+      // Try to find columns that are just numbered 1-25 first
+      const numberIdx = headers.findIndex((h: string) => h && h.trim() === String(i));
+      
+      if (numberIdx !== -1) {
+        sessionColIndices.push(numberIdx);
+      } else {
+        // Fall back to other possible formats
+        const possibleNames = [
+          `Session ${i} Date`, 
+          `session ${i} date`,
+          `Session${i} Date`, 
+          `Session ${i}`,
+          `S${i} Date`
+        ];
+        
+        const idx = headers.findIndex((h: string) => possibleNames.includes(h.trim().toLowerCase()));
+        sessionColIndices.push(idx);
+      }
+    }
+    
+    // In this sheet, we don't have separate completion columns
+    // We'll determine completion by checking if there's content in the session cells
+    const sessionCompletionIndices = Array(25).fill(-1);
+    
+    // Map data to structured format
+    const students = [];
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row[nameColIdx]) continue; // Skip rows with no name
+      
+      // Extract session dates and completion status
+      const sessionDates = [];
+      for (let s = 0; s < 25; s++) {
+        const dateIdx = sessionColIndices[s];
+        const completionIdx = sessionCompletionIndices[s];
+        
+        if (dateIdx !== -1 && row[dateIdx]) {
+          // Get the date value from the cell
+          let dateValue = row[dateIdx];
+          
+          // Validate that the date is properly formatted
+          // If it's not a valid date, replace with a dash
+          try {
+            // Simple validation - if it doesn't parse as a date or results in NaN, it's invalid
+            const testDate = new Date(dateValue);
+            if (isNaN(testDate.getTime()) || dateValue === 'Invalid Date') {
+              // Replace invalid date with a dash
+              dateValue = '-';
+            }
+          } catch (e) {
+            // Any parsing error means invalid date
+            dateValue = '-';
+          }
+          
+          // In this sheet, content in the session cell means the session is completed
+          // (unless it was an invalid date that we replaced with a dash)
+          const completionStatus = dateValue !== '-';
+          
+          sessionDates.push({
+            date: dateValue,
+            completed: completionStatus
+          });
+        } else {
+          sessionDates.push({
+            date: '-',
+            completed: false
+          });
+        }
+      }
+      
+      // Count how many sessions have been completed by checking for non-empty cells
+      let completedCount = 0;
+      for (let s = 0; s < sessionDates.length; s++) {
+        if (sessionDates[s].completed) {
+          completedCount++;
+        }
+      }
+      
+      // Get the raw data from the columns
+      // We need to extract any content values and filter out the existing labels
+      // The front-end will add the appropriate headers in the correct order
+      
+      // Extract raw values from the Google Sheet columns
+      let projectTrackValue = row[projectTrackIdx] || '';    // Column L - Project Track
+      let additionalGoalsValue = row[additionalGoalsIdx] || '';  // Column J - Additional Goals
+      let requestedSupportValue = row[requestedAreasIdx] || ''; // Column K - Requested Areas of Support
+      
+      // Remove any existing labels to prevent duplication with front-end formatting
+      projectTrackValue = projectTrackValue.replace(/^Project Track:?\s*/i, '').trim();
+      additionalGoalsValue = additionalGoalsValue.replace(/^Additional Goals:?\s*/i, '').trim();
+      requestedSupportValue = requestedSupportValue.replace(/^Requested Areas of Support:?\s*/i, '').trim();
+      
+      // Check if any pre-program info is available
+      const hasPreProgramInfo = projectTrackValue || additionalGoalsValue || requestedSupportValue;
+      
+      // Format pre-program information in the exact order required
+      let preProgramInfo = '';
+      
+      if (hasPreProgramInfo) {
+        // Build the content without adding headers (the frontend will handle this)
+        // Just provide the content values in the desired order
+        const sections = [];
+        
+        // 1. Project Track content only (always first)
+        sections.push(projectTrackValue);
+        
+        // 2. Additional Goals content only (always second)
+        sections.push(additionalGoalsValue);
+        
+        // 3. Requested Areas of Support content only (always last)
+        sections.push(requestedSupportValue);
+        
+        // Filter out any empty sections
+        const nonEmptySections = sections.filter(section => section.trim() !== '');
+        
+        // Join them with double newlines (use the filtered sections)
+        preProgramInfo = nonEmptySections.join('\n\n');
+      } else {
+        preProgramInfo = `Please encourage ${row[nameColIdx]} to fill out the <a href="https://inspiritai.co/1-1-Pre-Program" target="_blank" style="color: #0066cc; text-decoration: underline;">Pre-Program Survey</a>.`;
+      }
+      
+      // Check if pre-assessment info is available (at least one of the fields has content)
+      const hasPreAssessmentInfo = row[assessmentScoreIdx] || row[definitionPandasIdx] || row[reasonTrainTestIdx];
+      
+      // Format pre-assessment info by combining columns M, N, O with appropriate formatting
+      // If no info is available, display a custom message with the student's name
+      let preAssessmentInfo;
+      
+      if (hasPreAssessmentInfo) {
+        preAssessmentInfo = [
+          `- ${row[assessmentScoreIdx] || 'Not specified'}`,
+          `- ${row[definitionPandasIdx] || 'Not specified'}`,
+          `- ${row[reasonTrainTestIdx] || 'Not specified'}`
+        ].join('\n');
+      } else {
+        preAssessmentInfo = `Please encourage ${row[nameColIdx]} to fill out the <a href="https://inspiritai.co/1-1-Pre-Program" target="_blank" style="color: #0066cc; text-decoration: underline;">Pre-Program Survey</a>.`;
+      }
+      
+      const student = {
+        name: row[nameColIdx],
+        mentorName: row[mentorColIdx] || '',
+        meetingLink: row[meetingLinkColIdx] || '',
+        grade: row[gradeColIdx] || '',
+        experience: row[experienceColIdx] || '',
+        goals: row[goalsColIdx] || '',
+        deadline: row[deadlineColIdx] || '',
+        sessionsCompleted: completedCount,
+        totalSessions: 25,
+        preProgramInfo: preProgramInfo,
+        preAssessmentInfo: preAssessmentInfo,
+        sessionDates
+      };
+      
+      students.push(student);
+    }
+    
+    return students;
+    
+  } catch (error) {
+    console.error('Error fetching 25-session data from Google Sheets:', error);
+    return [];
+  }
+}
+
 // Get the 25-session students, optionally filtered by mentor name
 export async function getTwentyFiveSessionStudents(forceRefresh = false, mentorName?: string): Promise<TwentyFiveSessionStudent[]> {
-  console.log('\n=== getTwentyFiveSessionStudents ===');
-  console.log('Mentor name provided:', mentorName || 'None');
+  const students = await fetch25SessionStudentData(forceRefresh);
   
-  const allStudents = await fetchStudentAttendanceData(forceRefresh);
-  console.log('Total students loaded from sheet:', allStudents?.length || 0);
-  
-  if (!allStudents || allStudents.length === 0) {
-    console.log('No students found in the sheet');
+  if (!students || students.length === 0) {
     return [];
   }
   
-  console.log('\n--- Filtering 25-session students ---');
-  
-  // First, find all students who have exactly 25 session dates defined
-  let filteredStudents = allStudents.filter((student: any) => {
-    if (!student.sessionDates || !Array.isArray(student.sessionDates)) return false;
-    
-    // Count the number of sessions that have a date (not empty or 'Not completed')
-    const validSessionCount = student.sessionDates.filter((session: any) => {
-      return session && session.date && session.date !== 'Not completed' && session.date.trim() !== '';
-    }).length;
-    
-    const isMatch = validSessionCount === 25;
-    
-    if (isMatch) {
-      console.log(`✅ 25-session student: "${student.name}" | ` + 
-                 `Mentor: "${student.mentorName}" | ` +
-                 `Sessions: ${student.sessionsCompleted}/${validSessionCount}`);
-    }
-    
-    return isMatch;
-  });
-  
-  console.log(`\nFound ${filteredStudents.length} 25-session students before mentor filter`);
+  // Sample the first few students to debug mentorName access
+  let filteredStudents = students;
   
   // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
-    // Use the same normalizeName function as in getTenSessionStudents
-    const normalizeName = (name: string) => {
-      return name
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-        .split(' ')
-        .sort()
-        .join(' ');
+    // More permissive mentor name matching
+    const simplifyName = (name: string) => {
+      // Basic simplification: lowercase, trim spaces, and remove punctuation
+      return name?.trim().toLowerCase().replace(/[^a-z0-9 ]/g, '') || '';
     };
     
-    const normalizedMentorName = normalizeName(mentorName);
-    console.log('\n--- Filtering by mentor ---');
-    console.log('Searching for mentor name:', `"${mentorName}"`);
-    console.log('Normalized search term:', `"${normalizedMentorName}"`);
+    const targetMentorSimplified = simplifyName(mentorName);
     
-    filteredStudents = filteredStudents.filter((student: any) => {
-      if (!student.mentorName) {
-        console.log(`❌ Student "${student.name}" has no mentor name`);
+    // Try multiple matching approaches
+    filteredStudents = students.filter((student: any) => {
+      const instructorName = student.mentorName || '';
+      
+      if (!instructorName) {
         return false;
       }
       
-      try {
-        // Normalize the stored mentor name
-        const storedMentorName = normalizeName(String(student.mentorName));
-        
-        // Only match if the normalized names match exactly
-        const isMatch = storedMentorName === normalizedMentorName;
-        
-        if (isMatch) {
-          console.log(`✅ MATCHED: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        } else {
-          console.log(`❌ NO MATCH: Student "${student.name}" | ` +
-                     `Mentor: "${student.mentorName}" (normalized: "${storedMentorName}")`);
-        }
-        
-        return isMatch;
-      } catch (error) {
-        console.error(`Error processing mentor name for student "${student.name}":`, error);
-        return false;
-      }
+      // Try different matching strategies
+      const exactMatch = instructorName === mentorName;
+      const simplifiedMatch = simplifyName(instructorName) === targetMentorSimplified;
+      const containsMatch = simplifyName(instructorName).includes(targetMentorSimplified) || 
+                           targetMentorSimplified.includes(simplifyName(instructorName));
+      
+      const isMatch = exactMatch || simplifiedMatch || containsMatch;
+      
+      return isMatch;
     });
   }
   
-  return filteredStudents.map((student: any) => ({
-    ...student,
-    sessionDates: student.sessionDates.slice(0, 25) // Only keep the first 25 sessions
-  }));
+  return filteredStudents;
+}
+
+// Fetch completed students data from the dedicated Google Sheet
+export async function fetchCompletedStudentsData(forceRefresh = false): Promise<any> {
+  const now = Date.now();
+  
+  // Return cached data if it's fresh and not forced to refresh
+  if (!forceRefresh && now - lastCompletedStudentsFetchTime < CACHE_DURATION && cachedCompletedStudentsData) {
+    return cachedCompletedStudentsData;
+  }
+  
+  try {
+    const authClient = await getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+    
+    // Format sheet name for the API call
+    const formattedSheetName = COMPLETED_STUDENTS_SHEET_NAME.includes(' ') 
+      ? `'${COMPLETED_STUDENTS_SHEET_NAME}'` 
+      : COMPLETED_STUDENTS_SHEET_NAME;
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${formattedSheetName}!A:G`, // A-G covers all columns in Completed Students sheet
+    });
+    
+    const rows = response.data.values || [];
+    
+    if (rows.length <= 1) {
+      return [];
+    }
+    
+    // Extract header row to use as keys
+    const headers = rows[0].map((header: string) => header.trim());
+    
+    // Map data rows to objects using the headers as keys
+    const students = rows.slice(1).map((row: string[]) => {
+      const student: any = {};
+      
+      // Map columns to properties based on header names
+      headers.forEach((header: string, index: number) => {
+        const value = row[index] || '';
+        
+        switch (header) {
+          case 'Instructor Name':
+            student.mentorName = value;
+            break;
+          case 'Student Name':
+            student.name = value;
+            break;
+          case 'Student Email':
+            student.email = value;
+            break;
+          case 'Grade':
+            student.grade = value;
+            break;
+          case 'Experience':
+            student.experience = value;
+            break;
+          case 'Goals':
+            student.goals = value;
+            break;
+          case 'Total # Sessions':
+            student.totalSessions = parseInt(value) || 0;
+            student.sessionsCompleted = parseInt(value) || 0; // For completed students, these values are the same
+            student.totalSessionsCompleted = parseInt(value) || 0;
+            break;
+          case 'Sessions Continuing For':
+            student.sessionsContinuingFor = parseInt(value) || 0;
+            break;
+          case 'Sessions Held':
+            student.sessionsHeld = parseInt(value) || 0;
+            break;
+          default:
+            // Handle any other columns that might be added in the future
+            student[header.toLowerCase().replace(/\s+/g, '_')] = value;
+        }
+      });
+      
+      // Set default values for required fields if they're missing
+      student.meetingLink = student.meetingLink || '';
+      student.deadline = student.deadline || '';
+      student.preProgramInfo = student.preProgramInfo || '';
+      student.preAssessmentInfo = student.preAssessmentInfo || '';
+      
+      return student;
+    }).filter((student: any) => student.name && student.mentorName); // Filter out rows with missing essential data
+    
+    // Update cache
+    cachedCompletedStudentsData = students;
+    lastCompletedStudentsFetchTime = now;
+    
+    return students;
+  } catch (error) {
+    console.error('Error fetching Completed Students data:', error);
+    
+    // Return cached data if available, otherwise empty array
+    return cachedCompletedStudentsData || [];
+  }
 }
 
 // Get students who have completed their program, optionally filtered by mentor name
 export async function getCompletedStudents(forceRefresh = false, mentorName?: string): Promise<CompletedStudent[]> {
-  const allStudents = await fetchStudentAttendanceData(forceRefresh);
-  console.log('Total students loaded from sheet:', allStudents?.length || 0);
+  const allStudents = await fetchCompletedStudentsData(forceRefresh);
   
   if (!allStudents || allStudents.length === 0) {
-    console.log('No students found in the sheet');
     return [];
   }
   
-  console.log('\n--- Filtering completed students ---');
-  let filteredStudents = allStudents.filter((student: any) => 
-    student.sessionsCompleted >= student.totalSessions
-  );
-  
-  console.log(`\nFound ${filteredStudents.length} completed students before mentor filter`);
-  
-  // Log all unique mentor names for debugging
-  const allMentorNames = [...new Set(allStudents.map((s: any) => s.mentorName).filter(Boolean))];
-  console.log('All mentor names in sheet:', allMentorNames);
+  let filteredStudents = allStudents;
   
   // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
@@ -676,18 +922,121 @@ export async function getCompletedStudents(forceRefresh = false, mentorName?: st
   
   return filteredStudents.map((student: any) => ({
     ...student,
-    totalSessionsCompleted: student.sessionsCompleted
+    totalSessionsCompleted: student.totalSessionsCompleted || student.totalSessions || 0
   }));
+}
+
+// Fetch continuing students data from the dedicated Google Sheet
+export async function fetchContinuingStudentsData(forceRefresh = false): Promise<any> {
+  const now = Date.now();
+  
+  // Return cached data if it's fresh and not forced to refresh
+  if (!forceRefresh && now - lastContinuingStudentsFetchTime < CACHE_DURATION && cachedContinuingStudentsData) {
+    return cachedContinuingStudentsData;
+  }
+  
+  try {
+    const authClient = await getAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+    
+    // Format sheet name for the API call
+    const formattedSheetName = CONTINUING_STUDENTS_SHEET_NAME.includes(' ') 
+      ? `'${CONTINUING_STUDENTS_SHEET_NAME}'` 
+      : CONTINUING_STUDENTS_SHEET_NAME;
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${formattedSheetName}!A:H`, // A-H covers all columns in Continuing Students sheet
+    });
+    
+    const rows = response.data.values || [];
+    
+    if (rows.length <= 1) {
+      return [];
+    }
+    
+    // Extract header row to use as keys
+    const headers = rows[0].map((header: string) => header.trim());
+    
+    // Map data rows to objects using the headers as keys
+    const students = rows.slice(1).map((row: string[]) => {
+      const student: any = {};
+      
+      // Map columns to properties based on header names
+      headers.forEach((header: string, index: number) => {
+        const value = row[index] || '';
+        
+        switch (header) {
+          case 'Instructor Name':
+            student.mentorName = value;
+            break;
+          case 'Student Name':
+            student.name = value;
+            break;
+          case 'Student Email':
+            student.email = value;
+            break;
+          case 'Grade':
+            student.grade = value;
+            break;
+          case 'Experience':
+            student.experience = value;
+            break;
+          case 'Goals':
+            student.goals = value;
+            break;
+          case 'Total # Sessions':
+            student.totalSessions = parseInt(value) || 0;
+            student.sessionsCompleted = parseInt(value) || 0; // For completed students, these values are the same
+            student.totalSessionsCompleted = parseInt(value) || 0;
+            break;
+          case 'Sessions Continuing For':
+            student.sessionsContinuingFor = parseInt(value) || 0;
+            break;
+          case 'Sessions Held':
+            student.sessionsHeld = parseInt(value) || 0;
+            break;
+          default:
+            // Handle any other columns that might be added in the future
+            student[header.toLowerCase().replace(/\s+/g, '_')] = value;
+        }
+      });
+      
+      // Set default values for required fields if they're missing
+      student.meetingLink = student.meetingLink || '';
+      student.deadline = student.deadline || '';
+      student.preProgramInfo = student.preProgramInfo || '';
+      student.preAssessmentInfo = student.preAssessmentInfo || '';
+      
+      return student;
+    }).filter((student: any) => student.name && student.mentorName); // Filter out rows with missing essential data
+    
+    // Update cache
+    cachedContinuingStudentsData = students;
+    lastContinuingStudentsFetchTime = now;
+    
+    return students;
+  } catch (error) {
+    console.error('Error fetching Continuing Students data:', error);
+    
+    // Return cached data if available, otherwise empty array
+    return cachedContinuingStudentsData || [];
+  }
 }
 
 // Get students who are continuing beyond their initial program, optionally filtered by mentor name
 export async function getContinuingStudents(forceRefresh = false, mentorName?: string): Promise<ContinuingStudent[]> {
-  const allStudents = await fetchStudentAttendanceData(forceRefresh);
-  if (!allStudents) return [];
+  const allStudents = await fetchContinuingStudentsData(forceRefresh);
   
-  let filteredStudents = allStudents.filter((student: any) => 
-    student.sessionsCompleted >= student.totalSessions && student.sessionsCompleted < 25
-  );
+  if (!allStudents || allStudents.length === 0) {
+    return [];
+  }
+  
+  // Log all unique mentor names for debugging
+  const allMentorNames = [...new Set(allStudents.map((s: any) => s.mentorName).filter(Boolean))];
+  console.log('All mentor names in Continuing Students sheet:', allMentorNames);
+  
+  let filteredStudents = allStudents;
   
   // If a mentor name is provided, filter to only show that mentor's students
   if (mentorName) {
@@ -720,8 +1069,12 @@ export async function getContinuingStudents(forceRefresh = false, mentorName?: s
     });
   }
   
+  console.log(`Found ${filteredStudents.length} continuing students after applying filters`);
+  
   return filteredStudents.map((student: any) => ({
     ...student,
-    sessionsRemaining: 25 - student.sessionsCompleted
+    sessionsContinuingFor: student.sessionsContinuingFor || 0,
+    sessionsHeld: student.sessionsHeld || 0,
+    sessionsRemaining: student.sessionsRemaining || 0
   }));
 }
