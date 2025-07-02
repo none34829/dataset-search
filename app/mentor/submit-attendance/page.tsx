@@ -68,6 +68,9 @@ export default function SubmitAttendance() {
   const [progressDescription, setProgressDescription] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [rescheduleHours, setRescheduleHours] = useState('');
+  const [unexcusedContext, setUnexcusedContext] = useState('');
+  const [autoSessionNumber, setAutoSessionNumber] = useState<string>('');
   
   // Function to fetch fresh student data in the background
   const fetchFreshStudentData = async (mentorName: string) => {
@@ -307,7 +310,10 @@ export default function SubmitAttendance() {
         sessionDate: date ? `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` : '',
         isUnexcusedAbsence: isExcusedAbsence,
       };
-      if (!isExcusedAbsence) {
+      if (isExcusedAbsence === true) {
+        payload.rescheduleHours = rescheduleHours;
+        payload.unexcusedContext = unexcusedContext;
+      } else if (isExcusedAbsence === false) {
         payload.progressDescription = progressDescription;
         payload.exitTicket = exitTicket;
       }
@@ -324,25 +330,47 @@ export default function SubmitAttendance() {
         setIsExcusedAbsence(null);
         setExitTicket('');
         setProgressDescription('');
+        setRescheduleHours('');
+        setUnexcusedContext('');
+        setAutoSessionNumber('');
       } else {
         setSubmitMessage('Failed to submit attendance: ' + (data.error || 'Unknown error'));
       }
     } catch (err: any) {
       setSubmitMessage('Failed to submit attendance: ' + (err.message || 'Unknown error'));
     } finally {
-    // Process form submission
-    console.log({
-      selectedStudent,
-      date,
-      isExcusedAbsence,
-      exitTicket,
-      progressDescription
-    });
-    
-    // Show success message or redirect
-    alert('Attendance submitted successfully!');
-  }
-}
+      setSubmitting(false);
+    }
+  };
+
+  // Fetch session number when student or user changes
+  useEffect(() => {
+    const fetchSessionNumber = async () => {
+      if (user && selectedStudent) {
+        try {
+          const res = await fetch('/api/attendance/session-number', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mentorName: user.fullName || user.email.split('@')[0],
+              studentName: selectedStudent,
+            }),
+          });
+          const data = await res.json();
+          if (data.sessionNumber) {
+            setAutoSessionNumber(data.sessionNumber.toString());
+          } else {
+            setAutoSessionNumber('');
+          }
+        } catch {
+          setAutoSessionNumber('');
+        }
+      } else {
+        setAutoSessionNumber('');
+      }
+    };
+    fetchSessionNumber();
+  }, [user, selectedStudent]);
 
   if (!user) {
     return null;
@@ -546,37 +574,46 @@ export default function SubmitAttendance() {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Exit Ticket */}
-              <div>
-                <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">
-                  Please link your Exit Ticket from this session here
-                </label>
-                <input
-                  type="text"
-                  id="exitTicket"
-                  placeholder="Type here"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  value={exitTicket}
-                  onChange={(e) => setExitTicket(e.target.value)}
-                />
+            {selectedStudent && isExcusedAbsence !== null && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Session Number</label>
+                <input type="text" value={autoSessionNumber} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100" />
               </div>
-              <div></div>
-            </div>
+            )}
             
-            {/* Progress Description */}
-            <div className="mb-6">
-              <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">
-                Please describe your progress today in a few sentences
-              </label>
-              <textarea
-                id="progressDescription"
-                placeholder="Type here"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32"
-                value={progressDescription}
-                onChange={(e) => setProgressDescription(e.target.value)}
-              />
-            </div>
+            {isExcusedAbsence === true && (
+              <>
+                {/* Reschedule Hours dropdown */}
+                <div className="mb-6">
+                  <label htmlFor="rescheduleHours" className="block text-sm font-medium text-gray-700 mb-1">How many hours before the session was it rescheduled?</label>
+                  <select id="rescheduleHours" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={rescheduleHours} onChange={(e) => setRescheduleHours(e.target.value)}>
+                    <option value="">Select an option</option>
+                    <option value="No Show">No Show</option>
+                    <option value="Within 1 Hour">Within 1 Hour</option>
+                    {[...Array(23)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                  </select>
+                </div>
+                {/* Unexcused Context textarea */}
+                <div className="mb-6">
+                  <label htmlFor="unexcusedContext" className="block text-sm font-medium text-gray-700 mb-1">Please provide any more context / reason provided by the student.</label>
+                  <textarea id="unexcusedContext" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32" value={unexcusedContext} onChange={(e) => setUnexcusedContext(e.target.value)} />
+                </div>
+              </>
+            )}
+            {isExcusedAbsence === false && (
+              <>
+                {/* Exit Ticket input */}
+                <div className="mb-6">
+                  <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">Please link your Exit Ticket from this session here</label>
+                  <input type="text" id="exitTicket" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={exitTicket} onChange={(e) => setExitTicket(e.target.value)} />
+                </div>
+                {/* Progress Description textarea */}
+                <div className="mb-6">
+                  <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">Please describe your progress today in a few sentences</label>
+                  <textarea id="progressDescription" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32" value={progressDescription} onChange={(e) => setProgressDescription(e.target.value)} />
+                </div>
+              </>
+            )}
             
             <div className="flex justify-center">
               <Button 

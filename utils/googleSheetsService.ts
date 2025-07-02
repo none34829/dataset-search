@@ -109,11 +109,15 @@ export async function fetchStudentsFromSheet(): Promise<{ email: string; passwor
         row.length > 0 ? { email: row[0] ? row[0].substring(0, 3) + '...' : 'empty', hasPassword: !!row[1] } : 'empty row'
       ));
       
-      // Skip header row and map data
-      const students = rows.slice(1).map((row: string[]) => ({
-        email: row[0],
-        password: row[1]
-      }));
+      // Support multiple emails per cell (comma-separated)
+      const students: { email: string; password: string }[] = [];
+      rows.slice(1).forEach((row: string[]) => {
+        if (!row[0] || !row[1]) return;
+        const emails = row[0].split(/,\s*/).map((e: string) => e.trim()).filter(Boolean);
+        emails.forEach((email: string) => {
+          students.push({ email, password: row[1] });
+        });
+      });
       
       console.log(`Processed ${students.length} student records`);
       
@@ -164,9 +168,9 @@ export async function authenticateStudent(email: string, password: string): Prom
   
   let students = await getStudents();
   
-  // Check if credentials match in current cache
-  let authenticated = students.some(student => 
-    student.email === email && student.password === password
+  // Check if credentials match in current cache (now supports multiple emails per cell)
+  let authenticated = students.some(student =>
+    student.email.trim().toLowerCase() === email.trim().toLowerCase() && student.password === password
   );
   
   // If authentication failed, try again with forced refresh
@@ -175,8 +179,8 @@ export async function authenticateStudent(email: string, password: string): Prom
     students = await getStudents(true); // Force refresh
     
     // Check if credentials match after refresh
-    authenticated = students.some(student => 
-      student.email === email && student.password === password
+    authenticated = students.some(student =>
+      student.email.trim().toLowerCase() === email.trim().toLowerCase() && student.password === password
     );
     
     if (authenticated) {

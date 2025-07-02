@@ -63,16 +63,21 @@ export async function POST(req: NextRequest) {
     row[0] = timestamp; // Timestamp (A)
     row[1] = mentorName; // Mentor Name (B)
     row[2] = studentName; // Student Name (C)
-    row[3] = sessionNumber.toString(); // Meeting Number (D)
     row[4] = sessionDate; // Meeting Date (E)
     row[8] = mentorEmail; // Email Address (I)
     // Conditional fields
     if (isUnexcusedAbsence) {
       row[12] = 'Yes'; // Unexcused Absence (M)
+      row[16] = sessionNumber.toString(); // Session Number in Column Q
+      row[13] = body.rescheduleHours || '';
+      row[14] = body.unexcusedContext || '';
+      // Leave D blank
     } else {
+      row[3] = sessionNumber.toString(); // Session Number in Column D
       row[5] = progressDescription; // Progress (F)
       row[6] = exitTicket; // Exit Ticket (G)
       row[12] = 'No';
+      // Leave Q blank
     }
     // (Other columns left blank)
 
