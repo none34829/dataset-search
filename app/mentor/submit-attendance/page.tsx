@@ -343,10 +343,13 @@ export default function SubmitAttendance() {
     }
   };
 
-  // Fetch session number when student or user changes
+  // Update the session number fetching logic to be more responsive
   useEffect(() => {
     const fetchSessionNumber = async () => {
       if (user && selectedStudent) {
+        // Show loading state immediately
+        setAutoSessionNumber("Calculating...");
+        
         try {
           const res = await fetch('/api/attendance/session-number', {
             method: 'POST',
@@ -360,16 +363,20 @@ export default function SubmitAttendance() {
           if (data.sessionNumber) {
             setAutoSessionNumber(data.sessionNumber.toString());
           } else {
-            setAutoSessionNumber('');
+            setAutoSessionNumber('1'); // Fallback to 1 if no data
           }
-        } catch {
-          setAutoSessionNumber('');
+        } catch (error) {
+          console.error('Error fetching session number:', error);
+          setAutoSessionNumber('1'); // Fallback to 1 on error
         }
       } else {
         setAutoSessionNumber('');
       }
     };
-    fetchSessionNumber();
+    
+    // Add a small delay to avoid too many requests
+    const timeoutId = setTimeout(fetchSessionNumber, 100);
+    return () => clearTimeout(timeoutId);
   }, [user, selectedStudent]);
 
   if (!user) {
