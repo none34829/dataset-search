@@ -81,6 +81,26 @@ export async function POST(req: NextRequest) {
     }
     // (Other columns left blank)
 
+    // Write special session answers to correct columns
+    if (body.specialQuestionType && body.specialQuestionSession && body.specialQuestionValues) {
+      const type = body.specialQuestionType;
+      const session = Number(body.specialQuestionSession);
+      const vals = body.specialQuestionValues;
+      if (type === '10') {
+        if (session === 2 && vals.projectTopic) row[9] = vals.projectTopic; // J
+        if (session === 5) {
+          if (vals.confirmedTopic) row[17] = vals.confirmedTopic; // R
+          if (vals.midFeedback) row[10] = vals.midFeedback; // K
+        }
+        if (session === 10 && vals.finalFeedback) row[11] = vals.finalFeedback; // L
+      } else if (type === '25') {
+        if (session === 2 && vals.projectTopic25) row[9] = vals.projectTopic25; // J
+        if (session === 5 && vals.confirmedTopic) row[17] = vals.confirmedTopic; // R
+        if (session === 12 && vals.midFeedback25) row[18] = vals.midFeedback25; // S
+        if (session === 25 && vals.finalFeedback) row[11] = vals.finalFeedback; // L
+      }
+    }
+
     // Write to Google Sheets
     const sheets = await getSheetsClient();
     await sheets.spreadsheets.values.append({
