@@ -123,6 +123,9 @@ export async function authenticateMentor(email: string, passkey: string): Promis
 // Helper function to find a mentor that matches the login credentials
 // Supports multiple email addresses separated by commas
 function findMatchingMentor(mentors: MentorData[], loginEmail: string, passkey: string): MentorData | undefined {
+  // Convert login email to lowercase for case-insensitive comparison
+  const normalizedLoginEmail = loginEmail.toLowerCase();
+  
   return mentors.find(mentor => {
     // Check if passkey matches (case-sensitive)
     if (mentor.passkey !== passkey) return false;
