@@ -15,6 +15,7 @@ import {
   getCompletedStudents,
   getContinuingStudents
 } from "@/utils/googleSheetsService";
+import SpecialSessionQuestions from './SpecialSessionQuestions';
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -64,9 +65,16 @@ export default function SubmitAttendance() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExcusedAbsence, setIsExcusedAbsence] = useState<boolean | null>(null);
-  const [sessionNumber, setSessionNumber] = useState<string>('3');
   const [exitTicket, setExitTicket] = useState<string>('');
   const [progressDescription, setProgressDescription] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [rescheduleHours, setRescheduleHours] = useState('');
+  const [unexcusedContext, setUnexcusedContext] = useState('');
+  const [autoSessionNumber, setAutoSessionNumber] = useState<string>('');
+  const [specialQuestionValues, setSpecialQuestionValues] = useState<Record<string, string>>({});
+  const [specialQuestionErrors, setSpecialQuestionErrors] = useState<Record<string, string>>({});
+  const [selectedStudentType, setSelectedStudentType] = useState<'10' | '25' | null>(null);
   
   // Function to fetch fresh student data in the background
   const fetchFreshStudentData = async (mentorName: string) => {
@@ -103,6 +111,9 @@ export default function SubmitAttendance() {
       const uniqueStudents = Array.from(new Map(allStudents.map(student => 
         [student.name, student]
       )).values());
+
+      // Sort students by name in ascending order
+      uniqueStudents.sort((a, b) => a.name.localeCompare(b.name));
 
       // Always use the fetched students, even if empty
       console.log(`Background fetch: Found ${uniqueStudents.length} students for mentor ${mentorName}`);
@@ -203,6 +214,9 @@ export default function SubmitAttendance() {
         [student.name, student]
       )).values());
 
+      // Sort students by name in ascending order
+      uniqueStudents.sort((a, b) => a.name.localeCompare(b.name));
+
       console.log(`Fetched ${uniqueStudents.length} students for mentor ${mentorName}`);
       
       // Set students or use fallback if none found
@@ -255,6 +269,23 @@ export default function SubmitAttendance() {
     }
   }, [router]);
 
+  // When a student is selected, determine their type
+  useEffect(() => {
+    if (selectedStudent && students.length > 0) {
+      // Try to infer type from id or other property
+      const found = students.find(s => s.name === selectedStudent);
+      if (found && found.id) {
+        if (found.id.startsWith('10_')) setSelectedStudentType('10');
+        else if (found.id.startsWith('25_')) setSelectedStudentType('25');
+        else setSelectedStudentType(null);
+      } else {
+        setSelectedStudentType(null);
+      }
+    } else {
+      setSelectedStudentType(null);
+    }
+  }, [selectedStudent, students]);
+
   const getProfileInitials = () => {
     if (!user) return '';
     
@@ -288,21 +319,119 @@ export default function SubmitAttendance() {
     router.push('/');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // In handleSubmit, validate special questions if present
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Process form submission
-    console.log({
-      selectedStudent,
-      date,
-      isExcusedAbsence,
-      sessionNumber,
-      exitTicket,
-      progressDescription
+    setSubmitting(true);
+    setSubmitMessage(null);
+    // Validate special questions
+    let hasSpecialError = false;
+    Object.values(specialQuestionErrors).forEach(err => {
+      if (err) hasSpecialError = true;
     });
-    
-    // Show success message or redirect
-    alert('Attendance submitted successfully!');
+    // If any special question is required for this session, ensure it's filled
+    if ((selectedStudentType && autoSessionNumber) && (specialQuestionValues && Object.keys(specialQuestionValues).length > 0)) {
+      for (const key of Object.keys(specialQuestionValues)) {
+        if (!specialQuestionValues[key] || specialQuestionErrors[key]) {
+          hasSpecialError = true;
+          setSpecialQuestionErrors(prev => ({ ...prev, [key]: specialQuestionErrors[key] || 'This field is required.' }));
+        }
+      }
+    }
+    if (hasSpecialError) {
+      setSubmitting(false);
+      setSubmitMessage('Please fix errors in the special session questions.');
+      return;
+    }
+    try {
+      const payload: any = {
+        mentorName: user?.fullName || user?.email.split('@')[0],
+        mentorEmail: user?.email,
+        studentName: selectedStudent,
+        sessionDate: date ? `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` : '',
+        isUnexcusedAbsence: isExcusedAbsence,
+        specialQuestionValues,
+        specialQuestionSession: autoSessionNumber,
+        specialQuestionType: selectedStudentType,
+      };
+      if (isExcusedAbsence === true) {
+        payload.rescheduleHours = rescheduleHours;
+        payload.unexcusedContext = unexcusedContext;
+      } else if (isExcusedAbsence === false) {
+        payload.progressDescription = progressDescription;
+        payload.exitTicket = exitTicket;
+      }
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmitMessage('Attendance submitted successfully!');
+        setSelectedStudent('');
+        setDate(new Date());
+        setIsExcusedAbsence(null);
+        setExitTicket('');
+        setProgressDescription('');
+        setRescheduleHours('');
+        setUnexcusedContext('');
+        setAutoSessionNumber('');
+        setSpecialQuestionValues({});
+        setSpecialQuestionErrors({});
+      } else {
+        setSubmitMessage('Failed to submit attendance: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err: any) {
+      setSubmitMessage('Failed to submit attendance: ' + (err.message || 'Unknown error'));
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  // Update the session number fetching logic to be more responsive
+  useEffect(() => {
+    const fetchSessionNumber = async () => {
+      if (user && selectedStudent) {
+        // Show loading state immediately
+        setAutoSessionNumber("Calculating...");
+        
+        try {
+          const res = await fetch('/api/attendance/session-number', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mentorName: user.fullName || user.email.split('@')[0],
+              studentName: selectedStudent,
+            }),
+          });
+          const data = await res.json();
+          if (data.sessionNumber) {
+            setAutoSessionNumber(data.sessionNumber.toString());
+          } else {
+            setAutoSessionNumber('1'); // Fallback to 1 if no data
+          }
+        } catch (error) {
+          console.error('Error fetching session number:', error);
+          setAutoSessionNumber('1'); // Fallback to 1 on error
+        }
+      } else {
+        setAutoSessionNumber('');
+      }
+    };
+    
+    // Add a small delay to avoid too many requests
+    const timeoutId = setTimeout(fetchSessionNumber, 100);
+    return () => clearTimeout(timeoutId);
+  }, [user, selectedStudent]);
+
+  // Auto-dismiss submitMessage after 5 seconds
+  useEffect(() => {
+    if (submitMessage) {
+      const timer = setTimeout(() => setSubmitMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitMessage]);
 
   if (!user) {
     return null;
@@ -375,6 +504,11 @@ export default function SubmitAttendance() {
         <h1 className="text-3xl font-bold mb-4 text-center">Submit Attendance</h1>
         
         <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-6">
+          {submitMessage && (
+            <div className={`mb-6 px-4 py-3 rounded-md text-sm font-medium ${submitMessage.toLowerCase().includes('success') ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
+              {submitMessage}
+            </div>
+          )}
           <p className="mb-6 text-gray-700">
             Hi {user && user.fullName ? user.fullName.trim().split(' ')[0] : user ? user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1) : 'Mentor'}! Please submit your attendance here. If you are submitting for a student not listed below, please reach out to AI Mentorship Team on Slack.
           </p>
@@ -406,6 +540,7 @@ export default function SubmitAttendance() {
                           e.stopPropagation();
                           setIsDropdownOpen(true);
                         }}
+                        disabled={submitting}
                       />
                       <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                         <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="none" stroke="currentColor">
@@ -456,12 +591,23 @@ export default function SubmitAttendance() {
                 <label htmlFor="sessionDate" className="block text-sm font-medium text-gray-700 mb-1">
                   Session Date
                 </label>
-                <CustomCalendar
-                  selected={date}
-                  onSelect={(newDate) => {
-                    setDate(newDate);
-                  }}
-                />
+                {submitting ? (
+                  <div className="pointer-events-none opacity-50">
+                    <CustomCalendar
+                      selected={date}
+                      onSelect={(newDate) => {
+                        setDate(newDate);
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <CustomCalendar
+                    selected={date}
+                    onSelect={(newDate) => {
+                      setDate(newDate);
+                    }}
+                  />
+                )}
               </div>
             </div>
             
@@ -490,6 +636,7 @@ export default function SubmitAttendance() {
                     className="form-radio h-5 w-5 text-indigo-600"
                     onChange={() => setIsExcusedAbsence(true)}
                     checked={isExcusedAbsence === true}
+                    disabled={submitting}
                   />
                   <span className="ml-2">Yes</span>
                 </label>
@@ -500,65 +647,80 @@ export default function SubmitAttendance() {
                     className="form-radio h-5 w-5 text-indigo-600"
                     onChange={() => setIsExcusedAbsence(false)}
                     checked={isExcusedAbsence === false}
+                    disabled={submitting}
                   />
                   <span className="ml-2">No</span>
                 </label>
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              {/* Session Number */}
-              <div>
-                <label htmlFor="sessionNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                  Session Number
-                </label>
-                <input
-                  type="number"
-                  id="sessionNumber"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  value={sessionNumber}
-                  onChange={(e) => setSessionNumber(e.target.value)}
-                  min="1"
-                  max="25"
-                />
+            {selectedStudent && isExcusedAbsence !== null && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Session Number</label>
+                <input type="text" value={autoSessionNumber} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100" disabled={submitting} />
               </div>
-              
-              {/* Exit Ticket */}
-              <div>
-                <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">
-                  Please link your Exit Ticket from this session here
-                </label>
-                <input
-                  type="text"
-                  id="exitTicket"
-                  placeholder="Type here"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  value={exitTicket}
-                  onChange={(e) => setExitTicket(e.target.value)}
-                />
-              </div>
-            </div>
+            )}
             
-            {/* Progress Description */}
-            <div className="mb-6">
-              <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">
-                Please describe your progress today in a few sentences
-              </label>
-              <textarea
-                id="progressDescription"
-                placeholder="Type here"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32"
-                value={progressDescription}
-                onChange={(e) => setProgressDescription(e.target.value)}
+            {isExcusedAbsence === true && (
+              <>
+                {/* Reschedule Hours dropdown */}
+                <div className="mb-6">
+                  <label htmlFor="rescheduleHours" className="block text-sm font-medium text-gray-700 mb-1">How many hours before the session was it rescheduled?</label>
+                  <select id="rescheduleHours" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={rescheduleHours} onChange={(e) => setRescheduleHours(e.target.value)} disabled={submitting}>
+                    <option value="">Select an option</option>
+                    <option value="No Show">No Show</option>
+                    <option value="Within 1 Hour">Within 1 Hour</option>
+                    {[...Array(23)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                  </select>
+                </div>
+                {/* Unexcused Context textarea */}
+                <div className="mb-6">
+                  <label htmlFor="unexcusedContext" className="block text-sm font-medium text-gray-700 mb-1">Please provide any more context / reason provided by the student.</label>
+                  <textarea id="unexcusedContext" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32" value={unexcusedContext} onChange={(e) => setUnexcusedContext(e.target.value)} disabled={submitting} />
+                </div>
+              </>
+            )}
+            {isExcusedAbsence === false && (
+              <>
+                {/* Exit Ticket input */}
+                <div className="mb-6">
+                  <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">Please link your Exit Ticket (Google Docs) from your session here. Your Exit Ticket should be in your student folder for proper attendance tracking.</label>
+                  <input type="text" id="exitTicket" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={exitTicket} onChange={(e) => setExitTicket(e.target.value)} disabled={submitting} />
+                </div>
+                {/* Progress Description textarea */}
+                <div className="mb-6">
+                  <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">Please describe your progress today in a few sentences</label>
+                  <textarea id="progressDescription" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32" value={progressDescription} onChange={(e) => setProgressDescription(e.target.value)} disabled={submitting} />
+                </div>
+              </>
+            )}
+            
+            {selectedStudentType && autoSessionNumber && (
+              <SpecialSessionQuestions
+                studentType={selectedStudentType}
+                sessionNumber={parseInt(autoSessionNumber)}
+                values={specialQuestionValues}
+                setValues={setSpecialQuestionValues}
+                errors={specialQuestionErrors}
+                setErrors={setSpecialQuestionErrors}
               />
-            </div>
-            
+            )}
+
             <div className="flex justify-center">
               <Button 
-                type="submit" 
-                className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700"
+                type="submit"
+                className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 flex items-center justify-center gap-2 min-w-[120px]"
+                disabled={submitting}
               >
-                Submit
+                {submitting && (
+                  <span className="flex items-center">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                )}
+                <span>{submitting ? 'Submitting...' : 'Submit'}</span>
               </Button>
             </div>
           </form>

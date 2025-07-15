@@ -27,6 +27,8 @@ import {
   fetchContinuingStudents
 } from './serverActions';
 
+import { usePrefetchStore } from './prefetchStore';
+
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
@@ -114,6 +116,21 @@ export default function AttendanceTracker() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+
+  const {
+    tenSession,
+    twentyFiveSession,
+    completed,
+    continuing,
+    lastFetched,
+    loading: prefetchLoading,
+    error: prefetchError,
+    setPrefetchData,
+    setLoading,
+    setError,
+    clear,
+  } = usePrefetchStore();
 
   // Function to handle sorting
   const handleSort = (field: string) => {
@@ -178,80 +195,85 @@ export default function AttendanceTracker() {
   const filteredAndSortedCompletedStudents = filterStudents(sortStudents(completedStudents));
   const filteredAndSortedContinuingStudents = filterStudents(sortStudents(continuingStudents));
   
+  // Helper to check if prefetched data is fresh (<5 min)
+  const isPrefetchFresh = lastFetched && (Date.now() - lastFetched < 5 * 60 * 1000);
+
+  // Fetch and update global state (used for refresh and initial load if stale)
+  const fetchAndStoreData = async (mentorName: string, manual = false) => {
+    if (manual) setIsManualRefresh(true);
+    setLoading(true);
+    try {
+      const [ten, twentyFive, comp, cont] = await Promise.all([
+        fetchTenSessionStudents(false, mentorName),
+        fetchTwentyFiveSessionStudents(false, mentorName),
+        fetchCompletedStudents(false, mentorName),
+        fetchContinuingStudents(false, mentorName),
+      ]);
+      setPrefetchData({
+        tenSession: ten,
+        twentyFiveSession: twentyFive,
+        completed: comp,
+        continuing: cont,
+        lastFetched: Date.now(),
+      });
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch student data');
+    } finally {
+      setLoading(false);
+      if (manual) setIsManualRefresh(false);
+    }
+  };
+
+  // On mount, use prefetched data if fresh, otherwise fetch
   useEffect(() => {
-    // Load user info from localStorage
     const userStr = localStorage.getItem('user');
     if (!userStr) {
-      console.log('No user found in localStorage, redirecting to login');
-      router.push('/'); // Redirect to login if no user found
-      return;
-    }
-    
-    let parsedUser;
-    try {
-      parsedUser = JSON.parse(userStr);
-      console.log('Parsed user from localStorage:', parsedUser);
-      
-      if (parsedUser.type !== 'mentor') {
-        console.log('User is not a mentor, redirecting to search');
-        router.push('/search'); // Redirect non-mentors to dataset search
-        return;
-      }
-      
-      setUser(parsedUser);
-    } catch (error) {
-      console.error('Error parsing user from localStorage:', error);
       router.push('/');
       return;
     }
-    
-    // Load attendance data
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Get the mentor's full name to filter students
-        const mentorName = parsedUser.fullName || '';
-        console.log('Fetching students for mentor:', mentorName);
-        
-        if (!mentorName) {
-          console.error('No mentor name found for the logged-in user');
-          throw new Error('Mentor name not found');
-        }
-        
-        // Log the exact values being passed to each function
-        console.log('Calling fetchTenSessionStudents with:', { mentorName });
-        const tenSessionData = await fetchTenSessionStudents(false, mentorName);
-        console.log('fetchTenSessionStudents result:', tenSessionData);
-        
-        console.log('Calling fetchTwentyFiveSessionStudents with:', { mentorName });
-        const twentyFiveSessionData = await fetchTwentyFiveSessionStudents(false, mentorName);
-        console.log('fetchTwentyFiveSessionStudents result:', twentyFiveSessionData);
-        
-        console.log('Calling fetchCompletedStudents with:', { mentorName });
-        const completedData = await fetchCompletedStudents(false, mentorName);
-        console.log('fetchCompletedStudents result:', completedData);
-        
-        console.log('Calling fetchContinuingStudents with:', { mentorName });
-        const continuingData = await fetchContinuingStudents(false, mentorName);
-        console.log('fetchContinuingStudents result:', continuingData);
-        
-        console.log(`Found ${tenSessionData.length} 10-session students for ${mentorName}`);
-        console.log('Sample mentor names in 10-session:', tenSessionData.slice(0, 3).map((s: any) => s.mentorName));
-        
-        setTenSessionStudents(tenSessionData);
-        setTwentyFiveSessionStudents(twentyFiveSessionData);
-        setCompletedStudents(completedData);
-        setContinuingStudents(continuingData);
-      } catch (error) {
-        console.error('Error fetching attendance data:', error);
-      } finally {
+    let parsedUser;
+    try {
+      parsedUser = JSON.parse(userStr);
+      if (parsedUser.type !== 'mentor') {
+        router.push('/search');
+        return;
+      }
+      setUser(parsedUser);
+      if (!isPrefetchFresh) {
+        fetchAndStoreData(parsedUser.fullName || '', false);
+      } else {
+        // Use prefetched data
+        setTenSessionStudents(tenSession);
+        setTwentyFiveSessionStudents(twentyFiveSession);
+        setCompletedStudents(completed);
+        setContinuingStudents(continuing);
         setIsLoading(false);
       }
-    };
-    
-    fetchData();
-  }, [router]);
+    } catch (error) {
+      router.push('/');
+      return;
+    }
+  }, []);
 
+  // When prefetch store updates, update local state if not loading
+  useEffect(() => {
+    if (!prefetchLoading && isPrefetchFresh) {
+      setTenSessionStudents(tenSession);
+      setTwentyFiveSessionStudents(twentyFiveSession);
+      setCompletedStudents(completed);
+      setContinuingStudents(continuing);
+      setIsLoading(false);
+    }
+  }, [tenSession, twentyFiveSession, completed, continuing, prefetchLoading, isPrefetchFresh]);
+
+  // Refresh button handler
+  const handleRefresh = () => {
+    if (user && user.fullName) {
+      fetchAndStoreData(user.fullName, true);
+    }
+  };
+  
   const getProfileInitials = () => {
     if (!user) return '';
     
@@ -368,12 +390,14 @@ export default function AttendanceTracker() {
       <main className="container mx-auto px-4 py-8 flex-grow">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Student Progress</h2>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/mentor')}
-          >
-            Back to Dashboard
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleRefresh} disabled={isManualRefresh}>
+              {isManualRefresh ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/mentor')}>
+              Back to Dashboard
+            </Button>
+          </div>
         </div>
         
         {/* Mentor greeting and submit attendance button */}

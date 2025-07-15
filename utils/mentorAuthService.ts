@@ -129,10 +129,9 @@ function findMatchingMentor(mentors: MentorData[], loginEmail: string, passkey: 
   return mentors.find(mentor => {
     // Check if passkey matches (case-sensitive)
     if (mentor.passkey !== passkey) return false;
-    
     // Split mentor email by commas and check if any match the login email (case-insensitive)
     const mentorEmails = mentor.email.split(/,\s*/).map(e => e.trim().toLowerCase());
-    return mentorEmails.includes(normalizedLoginEmail);
+    return mentorEmails.includes(loginEmail.trim().toLowerCase());
   });
 }
 
