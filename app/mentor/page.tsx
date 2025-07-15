@@ -25,6 +25,8 @@ export default function MentorDashboard() {
   const setLoading = usePrefetchStore((s) => s.setLoading);
   const setError = usePrefetchStore((s) => s.setError);
   const clearPrefetch = usePrefetchStore((s) => s.clear);
+  const setMentorId = usePrefetchStore((s) => s.setMentorId);
+  const mentorId = usePrefetchStore((s) => s.mentorId);
 
   // Prefetch student progress data for this mentor as soon as they land on the dashboard
   useEffect(() => {
@@ -33,8 +35,12 @@ export default function MentorDashboard() {
     if (!userStr) return;
     const parsedUser = JSON.parse(userStr);
     if (parsedUser.type !== "mentor") return;
-    const mentorName = parsedUser.fullName || "";
-    if (!mentorName) return;
+    const mentorName = parsedUser.fullName || parsedUser.email || "";
+    // If mentorId in store does not match, clear store and set new mentorId
+    if (mentorId !== mentorName) {
+      clearPrefetch();
+      setMentorId(mentorName);
+    }
     setLoading(true);
     Promise.all([
       fetchTenSessionStudents(false, mentorName),
@@ -49,6 +55,7 @@ export default function MentorDashboard() {
           completed,
           continuing,
           lastFetched: Date.now(),
+          mentorId: mentorName,
         });
         setError(null);
       })
@@ -56,7 +63,7 @@ export default function MentorDashboard() {
         setError("Failed to prefetch student data");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [mentorId]);
 
   useEffect(() => {
     // Load user info from localStorage
