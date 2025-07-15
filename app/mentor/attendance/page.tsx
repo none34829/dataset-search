@@ -130,6 +130,8 @@ export default function AttendanceTracker() {
     setLoading,
     setError,
     clear,
+    mentorId,
+    setMentorId,
   } = usePrefetchStore();
 
   // Function to handle sorting
@@ -240,8 +242,15 @@ export default function AttendanceTracker() {
         return;
       }
       setUser(parsedUser);
+      const currentMentorId = parsedUser.fullName || parsedUser.email || '';
+      if (mentorId !== currentMentorId) {
+        clear();
+        setMentorId(currentMentorId);
+        fetchAndStoreData(currentMentorId, false);
+        return;
+      }
       if (!isPrefetchFresh) {
-        fetchAndStoreData(parsedUser.fullName || '', false);
+        fetchAndStoreData(currentMentorId, false);
       } else {
         // Use prefetched data
         setTenSessionStudents(tenSession);
@@ -254,7 +263,7 @@ export default function AttendanceTracker() {
       router.push('/');
       return;
     }
-  }, []);
+  }, [mentorId]);
 
   // When prefetch store updates, update local state if not loading
   useEffect(() => {
