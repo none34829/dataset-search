@@ -14,6 +14,8 @@ import {
   getContinuingStudents as getSheetContinuingStudents
 } from '@/utils/googleSheetsService';
 
+export type { TenSessionStudent, TwentyFiveSessionStudent, CompletedStudent, ContinuingStudent };
+
 // Server actions that can be called from client components
 export async function fetchTenSessionStudents(forceRefresh = false, mentorName?: string) {
   console.log('\n[fetchTenSessionStudents] Called with:', { forceRefresh, mentorName });

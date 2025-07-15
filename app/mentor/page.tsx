@@ -6,6 +6,8 @@ import { Inter } from 'next/font/google';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { fetchTenSessionStudents, fetchTwentyFiveSessionStudents, fetchCompletedStudents, fetchContinuingStudents } from "./attendance/serverActions";
+import { usePrefetchStore } from "./attendance/prefetchStore";
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -19,7 +21,43 @@ interface User {
 export default function MentorDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  
+  const setPrefetchData = usePrefetchStore((s) => s.setPrefetchData);
+  const setLoading = usePrefetchStore((s) => s.setLoading);
+  const setError = usePrefetchStore((s) => s.setError);
+  const clearPrefetch = usePrefetchStore((s) => s.clear);
+
+  // Prefetch student progress data for this mentor as soon as they land on the dashboard
+  useEffect(() => {
+    // Only run if mentor is logged in
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return;
+    const parsedUser = JSON.parse(userStr);
+    if (parsedUser.type !== "mentor") return;
+    const mentorName = parsedUser.fullName || "";
+    if (!mentorName) return;
+    setLoading(true);
+    Promise.all([
+      fetchTenSessionStudents(false, mentorName),
+      fetchTwentyFiveSessionStudents(false, mentorName),
+      fetchCompletedStudents(false, mentorName),
+      fetchContinuingStudents(false, mentorName),
+    ])
+      .then(([tenSession, twentyFiveSession, completed, continuing]) => {
+        setPrefetchData({
+          tenSession,
+          twentyFiveSession,
+          completed,
+          continuing,
+          lastFetched: Date.now(),
+        });
+        setError(null);
+      })
+      .catch((err) => {
+        setError("Failed to prefetch student data");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
     // Load user info from localStorage
     const userStr = localStorage.getItem('user');
@@ -65,6 +103,7 @@ export default function MentorDashboard() {
   
   const handleLogout = () => {
     localStorage.removeItem('user');
+    clearPrefetch();
     router.push('/');
   }
 
