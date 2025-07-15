@@ -166,6 +166,9 @@ export async function authenticateStudent(email: string, password: string): Prom
   // First try with potentially cached data
   console.log(`Attempting authentication for ${email}`);
   
+  // Convert email to lowercase for case-insensitive comparison
+  const normalizedEmail = email.toLowerCase();
+  
   let students = await getStudents();
   
   // Check if credentials match in current cache (now supports multiple emails per cell)
