@@ -75,6 +75,34 @@ export default function SubmitAttendance() {
   const [specialQuestionValues, setSpecialQuestionValues] = useState<Record<string, string>>({});
   const [specialQuestionErrors, setSpecialQuestionErrors] = useState<Record<string, string>>({});
   const [selectedStudentType, setSelectedStudentType] = useState<'10' | '25' | null>(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Determine max sessions based on student type
+  let maxSessions = 25;
+  if (selectedStudentType === '10') maxSessions = 10;
+  if (selectedStudentType === '25') maxSessions = 25;
+  const sessionNumberInt = parseInt(autoSessionNumber, 10);
+  const sessionLimitReached = sessionNumberInt > maxSessions;
+
+  // Validation logic for required fields
+  const specialQuestionsRequired = (selectedStudentType && autoSessionNumber && Object.keys(specialQuestionValues).length > 0);
+  const specialQuestionsIncomplete = specialQuestionsRequired && (
+    Object.values(specialQuestionValues).some(v => !v) ||
+    Object.values(specialQuestionErrors).some(e => !!e)
+  );
+  // Only allow submit if session number is a valid number
+  const sessionNumberReady = !!autoSessionNumber && !isNaN(Number(autoSessionNumber));
+
+  const isFormIncomplete = Boolean(
+    !selectedStudent ||
+    !date ||
+    isExcusedAbsence === null ||
+    (isExcusedAbsence === true && (!rescheduleHours || !unexcusedContext)) ||
+    (isExcusedAbsence === false && (!exitTicket || !progressDescription)) ||
+    specialQuestionsIncomplete ||
+    sessionLimitReached ||
+    !sessionNumberReady
+  );
   
   // Function to fetch fresh student data in the background
   const fetchFreshStudentData = async (mentorName: string) => {
@@ -87,7 +115,7 @@ export default function SubmitAttendance() {
         getContinuingStudents(true, mentorName)
       ]);
 
-      // Transform and process as usual
+      // Transform and process as usual (EXCLUDE completedStudents)
       const allStudents: Student[] = [
         ...tenSessionStudents.map((student, index) => ({
           id: `10_${index}`,
@@ -100,11 +128,8 @@ export default function SubmitAttendance() {
         ...continuingStudents.map((student, index) => ({
           id: `cont_${index}`,
           name: student.name
-        })),
-        ...completedStudents.map((student, index) => ({
-          id: `comp_${index}`,
-          name: student.name
         }))
+        // completedStudents are excluded
       ];
 
       // Remove duplicates
@@ -185,7 +210,7 @@ export default function SubmitAttendance() {
         getContinuingStudents(false, mentorName)
       ]);
 
-      // Transform all student data into the format needed for the dropdown
+      // Transform all student data into the format needed for the dropdown (EXCLUDE completedStudents)
       const allStudents: Student[] = [
         // 10-Session Students
         ...tenSessionStudents.map((student, index) => ({
@@ -201,12 +226,8 @@ export default function SubmitAttendance() {
         ...continuingStudents.map((student, index) => ({
           id: `cont_${index}`,
           name: student.name
-        })),
-        // Completed students
-        ...completedStudents.map((student, index) => ({
-          id: `comp_${index}`,
-          name: student.name
         }))
+        // Completed students are excluded
       ];
 
       // Remove any duplicates (in case a student appears in multiple sheets)
@@ -706,22 +727,37 @@ export default function SubmitAttendance() {
               />
             )}
 
-            <div className="flex justify-center">
-              <Button 
-                type="submit"
-                className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 flex items-center justify-center gap-2 min-w-[120px]"
-                disabled={submitting}
+            <div className="flex justify-center relative">
+              <span
+                onMouseEnter={() => { if (isFormIncomplete) setShowTooltip(true); }}
+                onMouseLeave={() => setShowTooltip(false)}
+                className="flex"
               >
-                {submitting && (
-                  <span className="flex items-center">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </span>
+                <Button
+                  type="submit"
+                  className="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 flex items-center justify-center gap-2 min-w-[120px] disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={submitting || isFormIncomplete}
+                >
+                  {submitting && (
+                    <span className="flex items-center">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </span>
+                  )}
+                  <span>{submitting ? 'Submitting...' : 'Submit'}</span>
+                </Button>
+                {showTooltip && isFormIncomplete && (
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs rounded px-3 py-2 shadow-lg z-50 whitespace-nowrap pointer-events-none animate-fade-in">
+                    {!sessionNumberReady
+                      ? 'Please wait for the session number to finish calculating.'
+                      : sessionLimitReached
+                        ? `This student is only enrolled for up to ${maxSessions} sessions. No more attendance can be submitted.`
+                        : 'Please fill out all required fields before submitting.'}
+                  </div>
                 )}
-                <span>{submitting ? 'Submitting...' : 'Submit'}</span>
-              </Button>
+              </span>
             </div>
           </form>
         </div>
