@@ -268,17 +268,17 @@ export default function SubmitAttendance() {
       console.log('Parsed user from localStorage:', parsedUser);
       
       // ONLY ALLOW TEST USER DURING TESTING (when done testing, comment out the entire block from here
-      //if (parsedUser.email !== 'synghalronil@gmail.com') {
-       // setUser({ ...parsedUser, notAllowed: true });
-      //  return;
-      //} //to here. also remove "if ((user as any).notAllowed) {" block
+      if (parsedUser.email !== 'synghalronil@gmail.com') {
+        setUser({ ...parsedUser, notAllowed: true });
+        return;
+      } //to here. also remove "if ((user as any).notAllowed) {" block
 
-      // --- To re-enable all mentors after testing, comment out the above block and uncomment the below ---
-       if (parsedUser.type !== 'mentor') {
-         console.log('User is not a mentor, redirecting to search');
-         router.push('/search'); // Redirect non-mentors to dataset search
-         return;
-       }
+      // --- To re-enable all mentors after testing, comment out the above block and uncomment the below from here ---
+       //if (parsedUser.type !== 'mentor') {
+         //console.log('User is not a mentor, redirecting to search');
+         //router.push('/search'); // Redirect non-mentors to dataset search
+         //return;
+       //} //till here
       setUser(parsedUser);
       
       // Fetch students for this mentor
@@ -464,15 +464,15 @@ export default function SubmitAttendance() {
     return null;
   }
   // ONLY ALLOW TEST USER DURING TESTING (when done testing, comment out the entire block from here
-  //if ((user as any).notAllowed) {
-    //return (
-      //<div className="flex flex-col items-center justify-center min-h-screen">
-        //<div className="bg-red-100 text-red-700 px-6 py-4 rounded shadow text-lg font-semibold mt-20">
-          //Access restricted: Only the test user can use this page during testing.
-        //</div>
-      //</div>
-    //);
-  //}
+  if ((user as any).notAllowed) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="bg-red-100 text-red-700 px-6 py-4 rounded shadow text-lg font-semibold mt-20">
+          Access restricted: Only the test user can use this page during testing.
+        </div>
+      </div>
+    );
+  }
   //till here
 
   return (
