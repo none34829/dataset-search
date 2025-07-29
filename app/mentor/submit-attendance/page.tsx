@@ -104,6 +104,17 @@ export default function SubmitAttendance() {
     !sessionNumberReady
   );
   
+  // Helper: are all fields filled except session number?
+  const allFieldsFilledExceptSession = (
+    selectedStudent &&
+    date &&
+    isExcusedAbsence !== null &&
+    ((isExcusedAbsence === true && rescheduleHours && unexcusedContext) ||
+     (isExcusedAbsence === false && exitTicket && progressDescription)) &&
+    !specialQuestionsIncomplete &&
+    !sessionLimitReached
+  );
+  
   // Function to fetch fresh student data in the background
   const fetchFreshStudentData = async (mentorName: string) => {
     try {
@@ -753,7 +764,7 @@ export default function SubmitAttendance() {
                 </Button>
                 {showTooltip && isFormIncomplete && (
                   <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs rounded px-3 py-2 shadow-lg z-50 whitespace-nowrap pointer-events-none animate-fade-in">
-                    {!sessionNumberReady
+                    {allFieldsFilledExceptSession && !sessionNumberReady
                       ? 'Please wait for the session number to finish calculating.'
                       : sessionLimitReached
                         ? `This student is only enrolled for up to ${maxSessions} sessions. No more attendance can be submitted.`
