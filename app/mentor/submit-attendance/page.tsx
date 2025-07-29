@@ -266,21 +266,18 @@ export default function SubmitAttendance() {
     try {
       parsedUser = JSON.parse(userStr);
       console.log('Parsed user from localStorage:', parsedUser);
-      
-      // ONLY ALLOW TEST USER DURING TESTING (when done testing, comment out the entire block from here
+      // ONLY ALLOW TEST USER DURING TESTING
       if (parsedUser.email !== 'synghalronil@gmail.com') {
-        setUser({ ...parsedUser, notAllowed: true });
+        window.location.href = 'https://docs.google.com/forms/d/e/1FAIpQLScOMqalDx03qDmypnOPbwhWQBM72Y-CXaeb0t7XtK3BOFOIrg/viewform';
         return;
-      } //to here. also remove "if ((user as any).notAllowed) {" block
-
-      // --- To re-enable all mentors after testing, comment out the above block and uncomment the below from here ---
-       //if (parsedUser.type !== 'mentor') {
-         //console.log('User is not a mentor, redirecting to search');
-         //router.push('/search'); // Redirect non-mentors to dataset search
-         //return;
-       //} //till here
+      }
+      // --- To re-enable all mentors after testing, comment out the above block and uncomment the below ---
+      // if (parsedUser.type !== 'mentor') {
+      //   console.log('User is not a mentor, redirecting to search');
+      //   router.push('/search'); // Redirect non-mentors to dataset search
+      //   return;
+      // }
       setUser(parsedUser);
-      
       // Fetch students for this mentor
       if (parsedUser.fullName) {
         fetchStudentsForMentor(parsedUser.fullName);
@@ -463,17 +460,6 @@ export default function SubmitAttendance() {
   if (!user) {
     return null;
   }
-  // ONLY ALLOW TEST USER DURING TESTING (when done testing, comment out the entire block from here
-  if ((user as any).notAllowed) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="bg-red-100 text-red-700 px-6 py-4 rounded shadow text-lg font-semibold mt-20">
-          Access restricted: Only the test user can use this page during testing.
-        </div>
-      </div>
-    );
-  }
-  //till here
 
   return (
     <div className={`flex flex-col min-h-screen ${inter.className}`}>
