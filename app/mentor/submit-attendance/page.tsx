@@ -282,6 +282,7 @@ export default function SubmitAttendance() {
         window.location.href = 'https://docs.google.com/forms/d/e/1FAIpQLScOMqalDx03qDmypnOPbwhWQBM72Y-CXaeb0t7XtK3BOFOIrg/viewform';
         return;
       } //till here when ready to go out of testing phase
+      
       // --- To re-enable all mentors after testing, comment out the above block and uncomment the below from here till here---
        //if (parsedUser.type !== 'mentor') {
          //console.log('User is not a mentor, redirecting to search');
