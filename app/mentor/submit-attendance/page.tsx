@@ -277,11 +277,11 @@ export default function SubmitAttendance() {
     try {
       parsedUser = JSON.parse(userStr);
       console.log('Parsed user from localStorage:', parsedUser);
-       ONLY ALLOW TEST USER DURING TESTING
+       //ONLY ALLOW TEST USER DURING TESTING comment out from here
       if (parsedUser.email !== 'synghalronil@gmail.com') {
         window.location.href = 'https://docs.google.com/forms/d/e/1FAIpQLScOMqalDx03qDmypnOPbwhWQBM72Y-CXaeb0t7XtK3BOFOIrg/viewform';
         return;
-      }
+      } //till here
       // --- To re-enable all mentors after testing, comment out the above block and uncomment the below from here till here---
        //if (parsedUser.type !== 'mentor') {
          //console.log('User is not a mentor, redirecting to search');
