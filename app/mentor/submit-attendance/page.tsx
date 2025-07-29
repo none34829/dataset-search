@@ -277,7 +277,7 @@ export default function SubmitAttendance() {
     try {
       parsedUser = JSON.parse(userStr);
       console.log('Parsed user from localStorage:', parsedUser);
-       ONLY ALLOW TEST USER DURING TESTING
+       //ONLY ALLOW TEST USER DURING TESTING
       if (parsedUser.email !== 'synghalronil@gmail.com') {
         window.location.href = 'https://docs.google.com/forms/d/e/1FAIpQLScOMqalDx03qDmypnOPbwhWQBM72Y-CXaeb0t7XtK3BOFOIrg/viewform';
         return;
