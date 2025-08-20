@@ -66,7 +66,9 @@ export default function SubmitAttendance() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExcusedAbsence, setIsExcusedAbsence] = useState<boolean | null>(null);
   const [exitTicket, setExitTicket] = useState<string>('');
+  const [exitTicketError, setExitTicketError] = useState<string>('');
   const [progressDescription, setProgressDescription] = useState<string>('');
+  const [progressDescriptionError, setProgressDescriptionError] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [rescheduleHours, setRescheduleHours] = useState('');
@@ -84,6 +86,39 @@ export default function SubmitAttendance() {
   const sessionNumberInt = parseInt(autoSessionNumber, 10);
   const sessionLimitReached = sessionNumberInt > maxSessions;
 
+  // Validation function for Google Docs URL
+  const validateGoogleDocsUrl = (url: string): boolean => {
+    if (!url.trim()) return true; // Empty is valid (will be caught by required field validation)
+    
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname === 'docs.google.com' && 
+             (urlObj.pathname.includes('/document/') || urlObj.pathname.includes('/spreadsheets/'));
+    } catch {
+      return false;
+    }
+  };
+
+  // Validation function for progress description (no N/A allowed)
+  const validateProgressDescription = (text: string): boolean => {
+    if (!text.trim()) return true; // Empty is valid (will be caught by required field validation)
+    
+    const naPatterns = [
+      /^n\/a$/i,
+      /^na$/i,
+      /^n\.a\.$/i,
+      /^not applicable$/i,
+      /^none$/i,
+      /^no progress$/i,
+      /^nothing$/i,
+      /^nada$/i,
+      /^zip$/i,
+      /^zero$/i
+    ];
+    
+    return !naPatterns.some(pattern => pattern.test(text.trim()));
+  };
+
   // Validation logic for required fields
   const specialQuestionsRequired = (selectedStudentType && autoSessionNumber && Object.keys(specialQuestionValues).length > 0);
   const specialQuestionsIncomplete = specialQuestionsRequired && (
@@ -98,7 +133,7 @@ export default function SubmitAttendance() {
     !date ||
     isExcusedAbsence === null ||
     (isExcusedAbsence === true && (!rescheduleHours || !unexcusedContext)) ||
-    (isExcusedAbsence === false && (!exitTicket || !progressDescription)) ||
+    (isExcusedAbsence === false && (!exitTicket || !progressDescription || exitTicketError || progressDescriptionError)) ||
     specialQuestionsIncomplete ||
     sessionLimitReached ||
     !sessionNumberReady
@@ -110,7 +145,7 @@ export default function SubmitAttendance() {
     date &&
     isExcusedAbsence !== null &&
     ((isExcusedAbsence === true && rescheduleHours && unexcusedContext) ||
-     (isExcusedAbsence === false && exitTicket && progressDescription)) &&
+     (isExcusedAbsence === false && exitTicket && progressDescription && !exitTicketError && !progressDescriptionError)) &&
     !specialQuestionsIncomplete &&
     !sessionLimitReached
   );
@@ -355,6 +390,34 @@ export default function SubmitAttendance() {
     router.push('/');
   };
 
+  // Handle exit ticket input change with validation
+  const handleExitTicketChange = (value: string) => {
+    setExitTicket(value);
+    if (value.trim()) {
+      if (!validateGoogleDocsUrl(value)) {
+        setExitTicketError('Please enter a valid Google Docs URL (https://docs.google.com/...)');
+      } else {
+        setExitTicketError('');
+      }
+    } else {
+      setExitTicketError('');
+    }
+  };
+
+  // Handle progress description input change with validation
+  const handleProgressDescriptionChange = (value: string) => {
+    setProgressDescription(value);
+    if (value.trim()) {
+      if (!validateProgressDescription(value)) {
+        setProgressDescriptionError('Please provide a meaningful description of your progress. "N/A", "None", or similar responses are not allowed.');
+      } else {
+        setProgressDescriptionError('');
+      }
+    } else {
+      setProgressDescriptionError('');
+    }
+  };
+
   // In handleSubmit, validate special questions if present
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,17 +467,19 @@ export default function SubmitAttendance() {
       });
       const data = await res.json();
       if (data.success) {
-        setSubmitMessage('Attendance submitted successfully!');
-        setSelectedStudent('');
-        setDate(new Date());
-        setIsExcusedAbsence(null);
-        setExitTicket('');
-        setProgressDescription('');
-        setRescheduleHours('');
-        setUnexcusedContext('');
-        setAutoSessionNumber('');
-        setSpecialQuestionValues({});
-        setSpecialQuestionErrors({});
+                 setSubmitMessage('Attendance submitted successfully!');
+         setSelectedStudent('');
+         setDate(new Date());
+         setIsExcusedAbsence(null);
+         setExitTicket('');
+         setExitTicketError('');
+         setProgressDescription('');
+         setProgressDescriptionError('');
+         setRescheduleHours('');
+         setUnexcusedContext('');
+         setAutoSessionNumber('');
+         setSpecialQuestionValues({});
+         setSpecialQuestionErrors({});
       } else {
         setSubmitMessage('Failed to submit attendance: ' + (data.error || 'Unknown error'));
       }
@@ -718,16 +783,41 @@ export default function SubmitAttendance() {
             )}
             {isExcusedAbsence === false && (
               <>
-                {/* Exit Ticket input */}
-                <div className="mb-6">
-                  <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">Please link your Exit Ticket (Google Docs) from your session here. Your Exit Ticket should be in your student folder for proper attendance tracking.</label>
-                  <input type="text" id="exitTicket" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" value={exitTicket} onChange={(e) => setExitTicket(e.target.value)} disabled={submitting} />
-                </div>
-                {/* Progress Description textarea */}
-                <div className="mb-6">
-                  <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">Please describe your progress today in a few sentences</label>
-                  <textarea id="progressDescription" placeholder="Type here" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32" value={progressDescription} onChange={(e) => setProgressDescription(e.target.value)} disabled={submitting} />
-                </div>
+                                 {/* Exit Ticket input */}
+                 <div className="mb-6">
+                   <label htmlFor="exitTicket" className="block text-sm font-medium text-gray-700 mb-1">Please link your Exit Ticket (Google Docs) from your session here. Your Exit Ticket should be in your student folder for proper attendance tracking.</label>
+                   <input 
+                     type="text" 
+                     id="exitTicket" 
+                     placeholder="https://docs.google.com/document/d/..." 
+                     className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                       exitTicketError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                     }`} 
+                     value={exitTicket} 
+                     onChange={(e) => handleExitTicketChange(e.target.value)} 
+                     disabled={submitting} 
+                   />
+                   {exitTicketError && (
+                     <p className="mt-1 text-sm text-red-600">{exitTicketError}</p>
+                   )}
+                 </div>
+                                 {/* Progress Description textarea */}
+                 <div className="mb-6">
+                   <label htmlFor="progressDescription" className="block text-sm font-medium text-gray-700 mb-1">Please describe your progress today in a few sentences</label>
+                   <textarea 
+                     id="progressDescription" 
+                     placeholder="Describe what you accomplished in this session..." 
+                     className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 h-32 ${
+                       progressDescriptionError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'
+                     }`} 
+                     value={progressDescription} 
+                     onChange={(e) => handleProgressDescriptionChange(e.target.value)} 
+                     disabled={submitting} 
+                   />
+                   {progressDescriptionError && (
+                     <p className="mt-1 text-sm text-red-600">{progressDescriptionError}</p>
+                   )}
+                 </div>
               </>
             )}
             
