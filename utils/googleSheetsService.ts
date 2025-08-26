@@ -55,7 +55,7 @@ let lastMentorFetchTime = 0;
 let lastAttendanceFetchTime = 0;
 let lastCompletedStudentsFetchTime = 0;
 let lastContinuingStudentsFetchTime = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_DURATION = 30 * 1000; // 30 seconds in milliseconds for faster updates
 
 // Initialize the Google Sheets API
 async function getAuthClient() {
@@ -1081,4 +1081,15 @@ export async function getContinuingStudents(forceRefresh = false, mentorName?: s
     sessionsHeld: student.sessionsHeld || 0,
     sessionsRemaining: student.sessionsRemaining || 0
   }));
+}
+
+// Function to clear all attendance-related caches
+export async function clearAttendanceCache() {
+  console.log('Clearing attendance cache for immediate refresh...');
+  cachedAttendanceData = null;
+  cachedCompletedStudentsData = null;
+  cachedContinuingStudentsData = null;
+  lastAttendanceFetchTime = 0;
+  lastCompletedStudentsFetchTime = 0;
+  lastContinuingStudentsFetchTime = 0;
 }

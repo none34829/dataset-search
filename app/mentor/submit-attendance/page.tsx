@@ -13,9 +13,11 @@ import {
   getTenSessionStudents,
   getTwentyFiveSessionStudents,
   getCompletedStudents,
-  getContinuingStudents
+  getContinuingStudents,
+  clearAttendanceCache
 } from "@/utils/googleSheetsService";
 import SpecialSessionQuestions from './SpecialSessionQuestions';
+import { usePrefetchStore } from '../attendance/prefetchStore';
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -41,6 +43,9 @@ export default function SubmitAttendance() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  // Get the prefetch store to refresh attendance data
+  const { setPrefetchData, setLoading: setPrefetchLoading } = usePrefetchStore();
+  
   // Filter students based on search query
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -62,6 +67,48 @@ export default function SubmitAttendance() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Function to refresh attendance data in the global store
+  const refreshAttendanceData = async (mentorName: string) => {
+    try {
+      console.log('Refreshing attendance data after submission...');
+      setPrefetchLoading(true);
+      
+      // Clear all attendance caches first to ensure fresh data
+      await clearAttendanceCache();
+      
+      // Import the server actions dynamically to avoid circular dependencies
+      const { 
+        fetchTenSessionStudents,
+        fetchTwentyFiveSessionStudents,
+        fetchCompletedStudents,
+        fetchContinuingStudents
+      } = await import('../attendance/serverActions');
+      
+      // Force refresh all attendance data
+      const [ten, twentyFive, comp, cont] = await Promise.all([
+        fetchTenSessionStudents(true, mentorName),
+        fetchTwentyFiveSessionStudents(true, mentorName),
+        fetchCompletedStudents(true, mentorName),
+        fetchContinuingStudents(true, mentorName),
+      ]);
+      
+      // Update the global store with fresh data
+      setPrefetchData({
+        tenSession: ten,
+        twentyFiveSession: twentyFive,
+        completed: comp,
+        continuing: cont,
+        lastFetched: Date.now(),
+      });
+      
+      console.log('Attendance data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing attendance data:', error);
+    } finally {
+      setPrefetchLoading(false);
+    }
+  };
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExcusedAbsence, setIsExcusedAbsence] = useState<boolean | null>(null);
@@ -467,19 +514,23 @@ export default function SubmitAttendance() {
       });
       const data = await res.json();
       if (data.success) {
-                 setSubmitMessage('Attendance submitted successfully!');
-         setSelectedStudent('');
-         setDate(new Date());
-         setIsExcusedAbsence(null);
-         setExitTicket('');
-         setExitTicketError('');
-         setProgressDescription('');
-         setProgressDescriptionError('');
-         setRescheduleHours('');
-         setUnexcusedContext('');
-         setAutoSessionNumber('');
-         setSpecialQuestionValues({});
-         setSpecialQuestionErrors({});
+        setSubmitMessage('Attendance submitted successfully!');
+        setSelectedStudent('');
+        setDate(new Date());
+        setIsExcusedAbsence(null);
+        setExitTicket('');
+        setExitTicketError('');
+        setProgressDescription('');
+        setProgressDescriptionError('');
+        setRescheduleHours('');
+        setUnexcusedContext('');
+        setAutoSessionNumber('');
+        setSpecialQuestionValues({});
+        setSpecialQuestionErrors({});
+        // Silently refresh attendance data in the background
+        if (user?.fullName || user?.email) {
+          refreshAttendanceData(user.fullName || user.email.split('@')[0]);
+        }
       } else {
         setSubmitMessage('Failed to submit attendance: ' + (data.error || 'Unknown error'));
       }

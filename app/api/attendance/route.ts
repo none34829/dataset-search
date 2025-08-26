@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { clearAttendanceCache } from '@/utils/googleSheetsService';
 
 const SHEET_ID = process.env.GOOGLE_SHEETS_ATTENDANCE_ID;
 const SHEET_TAB = process.env.GOOGLE_SHEETS_ATTENDANCE_TAB;
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: [row] },
     });
+
+    // Clear attendance cache to ensure fresh data is fetched immediately
+    await clearAttendanceCache();
 
     return NextResponse.json({ success: true, sessionNumber });
   } catch (error) {
