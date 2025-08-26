@@ -159,6 +159,16 @@ export default function ExternalDatabasesPage() {
                     External Databases
                   </Link>
                 </li>
+                {user.type === 'mentor' && (
+                  <li>
+                    <Link 
+                      href="/mentor"
+                      className="px-3 py-2"
+                    >
+                      Dashboard
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
             
