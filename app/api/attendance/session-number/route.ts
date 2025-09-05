@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
-const SHEET_ID = process.env.GOOGLE_SHEETS_ATTENDANCE_ID;
-const SHEET_TAB = process.env.GOOGLE_SHEETS_ATTENDANCE_TAB;
+// Use the main Google Sheets ID for student data
+const SHEET_ID = process.env.GOOGLE_SHEETS_ID || '1fkXcAsoZUIpu56XjyKQv2S5OTboYhVhwttGQCCadiFo';
+const TEN_SESSION_SHEET = '10-Session Student Info';
+const TWENTY_FIVE_SESSION_SHEET = '25-Session Student Info';
 const CREDENTIALS = process.env.GOOGLE_SHEETS_CREDENTIALS;
 
 async function getSheetsClient() {
@@ -17,51 +19,49 @@ async function getSheetsClient() {
 
 async function getNextSessionNumber(mentorName: string, studentName: string) {
   const sheets = await getSheetsClient();
-  const range = `${SHEET_TAB}!A:S`;
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range,
-  });
-  const rows = response.data.values || [];
   
-  // Find all session numbers for this mentor/student pair
-  const sessionNumbers: number[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (
-      row[1]?.trim().toLowerCase() === mentorName.trim().toLowerCase() &&
-      row[2]?.trim().toLowerCase() === studentName.trim().toLowerCase()
-    ) {
-      // Check both regular session number (column D) and unexcused session number (column Q)
-      const regularSession = row[3] ? parseInt(row[3]) : null;
-      const unexcusedSession = row[16] ? parseInt(row[16]) : null;
+  // Try both 10-session and 25-session sheets
+  const sheetsToCheck = [
+    { name: TEN_SESSION_SHEET, maxSessions: 10 },
+    { name: TWENTY_FIVE_SESSION_SHEET, maxSessions: 25 }
+  ];
+  
+  for (const sheetInfo of sheetsToCheck) {
+    try {
+      const range = `'${sheetInfo.name}'!A:Q`; // Include column Q for session count
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range,
+      });
+      const rows = response.data.values || [];
       
-      if (regularSession && !isNaN(regularSession)) {
-        sessionNumbers.push(regularSession);
+      // Find the student in this sheet
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (
+          row[0]?.trim().toLowerCase() === mentorName.trim().toLowerCase() && // Column A: Instructor Name
+          row[1]?.trim().toLowerCase() === studentName.trim().toLowerCase()   // Column B: Student Name
+        ) {
+          // Get the session count from column Q (index 16)
+          const sessionCountStr = row[16] || '';
+          const sessionCount = parseInt(sessionCountStr);
+          
+          if (!isNaN(sessionCount) && sessionCount >= 0) {
+            const nextSessionNumber = sessionCount + 1;
+            console.log(`Found student ${studentName} with ${sessionCount} completed sessions in ${sheetInfo.name}, next session = ${nextSessionNumber}`);
+            return nextSessionNumber;
+          }
+        }
       }
-      if (unexcusedSession && !isNaN(unexcusedSession)) {
-        sessionNumbers.push(unexcusedSession);
-      }
+    } catch (error) {
+      console.error(`Error checking ${sheetInfo.name}:`, error);
+      // Continue to next sheet
     }
   }
   
-  // Sort session numbers and find the first gap
-  sessionNumbers.sort((a, b) => a - b);
-  
-  // If no sessions exist, start with 1
-  if (sessionNumbers.length === 0) {
-    return 1;
-  }
-  
-  // Find the first missing number in the sequence
-  for (let i = 1; i <= Math.max(...sessionNumbers); i++) {
-    if (!sessionNumbers.includes(i)) {
-      return i;
-    }
-  }
-  
-  // If no gaps found, return the next number after the highest
-  return Math.max(...sessionNumbers) + 1;
+  // If not found in either sheet, return 1 as fallback
+  console.log(`Student ${studentName} not found in any student sheet, defaulting to session 1`);
+  return 1;
 }
 
 export async function POST(req: NextRequest) {
