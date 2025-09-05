@@ -67,12 +67,15 @@ async function getNextSessionNumber(mentorName: string, studentName: string) {
 export async function POST(req: NextRequest) {
   try {
     const { mentorName, studentName } = await req.json();
+    console.log(`Session number request for: ${mentorName} / ${studentName}`);
     if (!mentorName || !studentName) {
       return NextResponse.json({ error: 'mentorName and studentName are required' }, { status: 400 });
     }
     const sessionNumber = await getNextSessionNumber(mentorName, studentName);
+    console.log(`Returning session number: ${sessionNumber}`);
     return NextResponse.json({ sessionNumber });
   } catch (error) {
+    console.error('Error in session number endpoint:', error);
     return NextResponse.json({ error: (error as Error).message || 'Unknown error' }, { status: 500 });
   }
 } 

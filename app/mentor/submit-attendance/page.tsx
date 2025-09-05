@@ -549,6 +549,7 @@ export default function SubmitAttendance() {
         setAutoSessionNumber("Calculating...");
         
         try {
+          console.log(`Fetching session number for: ${user.fullName || user.email.split('@')[0]} / ${selectedStudent}`);
           const res = await fetch('/api/attendance/session-number', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -558,9 +559,12 @@ export default function SubmitAttendance() {
             }),
           });
           const data = await res.json();
+          console.log('Session number API response:', data);
           if (data.sessionNumber) {
+            console.log(`Setting session number to: ${data.sessionNumber}`);
             setAutoSessionNumber(data.sessionNumber.toString());
           } else {
+            console.log('No session number in response, using fallback 1');
             setAutoSessionNumber('1'); // Fallback to 1 if no data
           }
         } catch (error) {
@@ -575,7 +579,7 @@ export default function SubmitAttendance() {
     // Add a small delay to avoid too many requests
     const timeoutId = setTimeout(fetchSessionNumber, 100);
     return () => clearTimeout(timeoutId);
-  }, [user, selectedStudent]);
+  }, [user, selectedStudent]); // Session number should be consistent regardless of attendance type
 
   // Auto-dismiss submitMessage after 5 seconds
   useEffect(() => {
