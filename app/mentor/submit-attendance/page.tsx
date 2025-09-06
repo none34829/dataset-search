@@ -125,11 +125,13 @@ export default function SubmitAttendance() {
   const [specialQuestionErrors, setSpecialQuestionErrors] = useState<Record<string, string>>({});
   const [selectedStudentType, setSelectedStudentType] = useState<'10' | '25' | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [maxSessions, setMaxSessions] = useState<number>(25); // Dynamic max sessions from API
 
-  // Determine max sessions based on student type
-  let maxSessions = 25;
-  if (selectedStudentType === '10') maxSessions = 10;
-  if (selectedStudentType === '25') maxSessions = 25;
+  // Determine max sessions based on student type (fallback)
+  let fallbackMaxSessions = 25;
+  if (selectedStudentType === '10') fallbackMaxSessions = 10;
+  if (selectedStudentType === '25') fallbackMaxSessions = 25;
+  
   const sessionNumberInt = parseInt(autoSessionNumber, 10);
   const sessionLimitReached = sessionNumberInt > maxSessions;
 
@@ -567,19 +569,30 @@ export default function SubmitAttendance() {
             console.log('No session number in response, using fallback 1');
             setAutoSessionNumber('1'); // Fallback to 1 if no data
           }
+          
+          // Update max sessions from API response
+          if (data.maxSessions) {
+            console.log(`Setting max sessions to: ${data.maxSessions}`);
+            setMaxSessions(data.maxSessions);
+          } else {
+            console.log('No max sessions in response, using fallback');
+            setMaxSessions(fallbackMaxSessions);
+          }
         } catch (error) {
           console.error('Error fetching session number:', error);
           setAutoSessionNumber('1'); // Fallback to 1 on error
+          setMaxSessions(fallbackMaxSessions); // Fallback to student type max
         }
       } else {
         setAutoSessionNumber('');
+        setMaxSessions(fallbackMaxSessions);
       }
     };
     
     // Add a small delay to avoid too many requests
     const timeoutId = setTimeout(fetchSessionNumber, 100);
     return () => clearTimeout(timeoutId);
-  }, [user, selectedStudent]); // Session number should be consistent regardless of attendance type
+  }, [user, selectedStudent, fallbackMaxSessions]); // Session number should be consistent regardless of attendance type
 
   // Auto-dismiss submitMessage after 5 seconds
   useEffect(() => {
@@ -813,7 +826,13 @@ export default function SubmitAttendance() {
             {selectedStudent && isExcusedAbsence !== null && (
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Session Number</label>
-                <input type="text" value={autoSessionNumber} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100" disabled={submitting} />
+                <input 
+                  type="text" 
+                  value={autoSessionNumber} 
+                  readOnly 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100" 
+                  disabled={submitting} 
+                />
               </div>
             )}
             
