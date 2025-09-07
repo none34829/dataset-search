@@ -201,12 +201,16 @@ export async function POST(req: NextRequest) {
       sessionDate,
       isUnexcusedAbsence,
       progressDescription,
-      exitTicket
+      exitTicket,
+      sessionNumber: providedSessionNumber // Allow specific session number to be provided
     } = body;
 
-      // Auto-increment session number based on sequence gaps
-  const sessionNumber = await getNextSessionNumber(mentorName, studentName);
-  console.log(`Session calculation for ${mentorName}/${studentName}: Next session number = ${sessionNumber}`);
+    // Use provided session number if available, otherwise auto-increment
+    const sessionNumber = providedSessionNumber 
+      ? parseInt(providedSessionNumber)
+      : await getNextSessionNumber(mentorName, studentName);
+    
+    console.log(`Session calculation for ${mentorName}/${studentName}: ${providedSessionNumber ? `Using provided session number = ${sessionNumber}` : `Auto-calculated next session number = ${sessionNumber}`}`);
 
     // Prepare row for Google Sheets (A-S)
     // See: Timestamp, Mentor Name, Student Name, Meeting Number, Meeting Date, Progress, Exit Ticket, ... Unexcused, ... Email, etc.

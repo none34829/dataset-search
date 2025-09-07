@@ -18,6 +18,7 @@ import {
 } from "@/utils/googleSheetsService";
 import SpecialSessionQuestions from './SpecialSessionQuestions';
 import { usePrefetchStore } from '../attendance/prefetchStore';
+import AttendanceHolesModal from '@/components/AttendanceHolesModal';
 
 // Initialize the Inter font
 const inter = Inter({ subsets: ['latin'], display: 'swap' });
@@ -126,6 +127,12 @@ export default function SubmitAttendance() {
   const [selectedStudentType, setSelectedStudentType] = useState<'10' | '25' | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [maxSessions, setMaxSessions] = useState<number>(25); // Dynamic max sessions from API
+  
+  // Attendance holes state
+  const [attendanceHoles, setAttendanceHoles] = useState<any>(null);
+  const [showHolesModal, setShowHolesModal] = useState(false);
+  const [checkingHoles, setCheckingHoles] = useState(false);
+  const [formBlocked, setFormBlocked] = useState(false);
 
   // Determine max sessions based on student type (fallback)
   let fallbackMaxSessions = 25;
@@ -467,6 +474,40 @@ export default function SubmitAttendance() {
     }
   };
 
+  // Check for attendance holes when student is selected
+  const checkAttendanceHoles = async (studentName: string, studentType: '10' | '25') => {
+    if (!user || !studentName || !studentType) return;
+    
+    setCheckingHoles(true);
+    try {
+      const response = await fetch('/api/attendance/holes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mentorName: user.fullName || user.email.split('@')[0],
+          studentName,
+          studentType
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setAttendanceHoles(data);
+        setFormBlocked(data.hasHoles);
+      } else {
+        console.error('Error checking attendance holes:', data.error);
+        setAttendanceHoles(null);
+        setFormBlocked(false);
+      }
+    } catch (error) {
+      console.error('Error checking attendance holes:', error);
+      setAttendanceHoles(null);
+      setFormBlocked(false);
+    } finally {
+      setCheckingHoles(false);
+    }
+  };
+
   // In handleSubmit, validate special questions if present
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -594,6 +635,16 @@ export default function SubmitAttendance() {
     return () => clearTimeout(timeoutId);
   }, [user, selectedStudent, fallbackMaxSessions]); // Session number should be consistent regardless of attendance type
 
+  // Check for attendance holes when student type is determined
+  useEffect(() => {
+    if (selectedStudent && selectedStudentType) {
+      checkAttendanceHoles(selectedStudent, selectedStudentType);
+    } else {
+      setAttendanceHoles(null);
+      setFormBlocked(false);
+    }
+  }, [selectedStudent, selectedStudentType]);
+
   // Auto-dismiss submitMessage after 5 seconds
   useEffect(() => {
     if (submitMessage) {
@@ -672,17 +723,66 @@ export default function SubmitAttendance() {
       <main className="container mx-auto px-4 py-8 flex-grow">
         <h1 className="text-3xl font-bold mb-4 text-center">Submit Attendance</h1>
         
-        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border p-6 relative">
+          {/* Attendance Holes Blocking Overlay */}
+          {formBlocked && attendanceHoles && attendanceHoles.hasHoles && (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-95 rounded-lg z-10 flex items-center justify-center">
+              <div className="text-center p-8 max-w-md">
+                <div className="mb-4">
+                  <svg className="mx-auto h-12 w-12 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Missing Attendance Records Detected
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  You have missing attendance records for sessions{' '}
+                  <span className="font-semibold">
+                    {attendanceHoles.holes.map((hole: any) => hole.sessionNumber).join(', ')}
+                  </span>{' '}
+                  that must be filled out before session {attendanceHoles.nextSessionNumber}.
+                </p>
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setShowHolesModal(true)}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    Fill Out Missing Records
+                  </Button>
+                  <p className="text-sm text-gray-500">
+                    Need help? Contact us on{' '}
+                    <a href="https://inspiritai.slack.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Slack
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {submitMessage && (
             <div className={`mb-6 px-4 py-3 rounded-md text-sm font-medium ${submitMessage.toLowerCase().includes('success') ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
               {submitMessage}
             </div>
           )}
+          
+          {/* Holes checking indicator */}
+          {checkingHoles && (
+            <div className="mb-6 px-4 py-3 rounded-md text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200 flex items-center">
+              <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Checking for missing attendance records...
+            </div>
+          )}
+
           <p className="mb-6 text-gray-700">
             Hi {user && user.fullName ? user.fullName.trim().split(' ')[0] : user ? user.email.split('@')[0].split(/[._-]/)[0].charAt(0).toUpperCase() + user.email.split('@')[0].split(/[._-]/)[0].slice(1) : 'Mentor'}! Please submit your attendance here. If you are submitting for a student not listed below, please reach out to AI Mentorship Team on Slack.
           </p>
           
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} className={formBlocked ? 'pointer-events-none opacity-50' : ''}>
             <div className="grid grid-cols-2 gap-6 mb-6">
               {/* Student Name */}
               <div>
@@ -945,6 +1045,57 @@ export default function SubmitAttendance() {
       <footer className="py-4 text-center text-sm text-gray-500">
         © 2025 Inspirit AI. All rights reserved.
       </footer>
+
+      {/* Attendance Holes Modal */}
+      {attendanceHoles && attendanceHoles.hasHoles && (
+        <AttendanceHolesModal
+          isOpen={showHolesModal}
+          onClose={() => setShowHolesModal(false)}
+          holes={attendanceHoles.holes}
+          studentName={selectedStudent}
+          studentType={selectedStudentType!}
+          mentorName={user?.fullName || user?.email.split('@')[0] || ''}
+          mentorEmail={user?.email || ''}
+          onComplete={() => {
+            // Refresh attendance data and recheck holes
+            if (user?.fullName || user?.email) {
+              refreshAttendanceData(user.fullName || user.email.split('@')[0]);
+            }
+            setFormBlocked(false);
+            setAttendanceHoles(null);
+            
+            // Force refresh the session number to show the correct next session
+            if (user && selectedStudent) {
+              setAutoSessionNumber("Calculating...");
+              setTimeout(async () => {
+                try {
+                  console.log(`Refreshing session number after holes completion for: ${user.fullName || user.email.split('@')[0]} / ${selectedStudent}`);
+                  const res = await fetch('/api/attendance/session-number', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      mentorName: user.fullName || user.email.split('@')[0],
+                      studentName: selectedStudent,
+                    }),
+                  });
+                  const data = await res.json();
+                  console.log('Session number refresh response:', data);
+                  if (data.sessionNumber) {
+                    console.log(`Updated session number to: ${data.sessionNumber}`);
+                    setAutoSessionNumber(data.sessionNumber.toString());
+                  } else {
+                    console.log('No session number in refresh response, using fallback 1');
+                    setAutoSessionNumber('1');
+                  }
+                } catch (error) {
+                  console.error('Error refreshing session number:', error);
+                  setAutoSessionNumber('1');
+                }
+              }, 1000); // Small delay to ensure attendance data is refreshed first
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

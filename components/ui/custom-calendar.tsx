@@ -209,7 +209,7 @@ export function CustomCalendar({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 bg-white shadow-lg rounded-md overflow-hidden">
+        <div className={cn("absolute z-50 mt-1 bg-white shadow-lg rounded-md overflow-hidden", className)}>
           <div className="p-3">
             <input
               type="text"
