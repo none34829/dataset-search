@@ -143,6 +143,16 @@ export default function ExternalDatabasesPage() {
           <div className="flex items-center">
             <nav className="mr-6">
               <ul className="flex space-x-6">
+                {user.type === 'mentor' && (
+                  <li>
+                    <Link 
+                      href="/mentor"
+                      className="px-3 py-2"
+                    >
+                      Home
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link 
                     href="/search"
@@ -159,16 +169,6 @@ export default function ExternalDatabasesPage() {
                     External Databases
                   </Link>
                 </li>
-                {user.type === 'mentor' && (
-                  <li>
-                    <Link 
-                      href="/mentor"
-                      className="px-3 py-2"
-                    >
-                      Home
-                    </Link>
-                  </li>
-                )}
               </ul>
             </nav>
             
