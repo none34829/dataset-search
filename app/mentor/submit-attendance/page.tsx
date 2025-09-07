@@ -678,7 +678,7 @@ export default function SubmitAttendance() {
                   href="/mentor"
                   className="px-3 py-2 text-[#2f3167]/70 hover:text-[#2f3167] transition-colors"
                 >
-                  Dashboard
+                  Home
                 </Link>
               </li>
               <li className="border-b-2 border-[#2f3167]">
@@ -752,7 +752,7 @@ export default function SubmitAttendance() {
                   </Button>
                   <p className="text-sm text-gray-500">
                     Need help? Contact us on{' '}
-                    <a href="https://inspiritai.slack.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href="https://inspirit11men-pal1838.slack.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                       Slack
                     </a>
                   </p>

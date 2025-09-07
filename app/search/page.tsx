@@ -612,7 +612,7 @@ export default function SearchPage() {
                       href="/mentor"
                       className="px-3 py-2"
                     >
-                      Dashboard
+                      Home
                     </Link>
                   </li>
                 )}

@@ -165,7 +165,7 @@ export default function ExternalDatabasesPage() {
                       href="/mentor"
                       className="px-3 py-2"
                     >
-                      Dashboard
+                      Home
                     </Link>
                   </li>
                 )}
