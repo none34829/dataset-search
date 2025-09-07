@@ -125,10 +125,15 @@ export default function AttendanceHolesModal({
       const minDate = new Date(currentHole.dateRange.min);
       const maxDate = new Date(currentHole.dateRange.max);
       
-      if (minDate.getTime() > new Date('1900-01-01').getTime() && date < minDate) {
+      // Normalize dates to compare only date part (set time to 00:00:00)
+      const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const normalizedMinDate = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+      const normalizedMaxDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+      
+      if (normalizedMinDate.getTime() > new Date('1900-01-01').getTime() && normalizedDate < normalizedMinDate) {
         newErrors.date = `Date must be on or after ${(minDate.getMonth() + 1).toString().padStart(2, '0')}/${minDate.getDate().toString().padStart(2, '0')}/${minDate.getFullYear()}`;
       }
-      if (date > maxDate) {
+      if (normalizedDate > normalizedMaxDate) {
         newErrors.date = `Date must be on or before ${(maxDate.getMonth() + 1).toString().padStart(2, '0')}/${maxDate.getDate().toString().padStart(2, '0')}/${maxDate.getFullYear()}`;
       }
     }
