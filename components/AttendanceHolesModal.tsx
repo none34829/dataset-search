@@ -126,10 +126,10 @@ export default function AttendanceHolesModal({
       const maxDate = new Date(currentHole.dateRange.max);
       
       if (minDate.getTime() > new Date('1900-01-01').getTime() && date < minDate) {
-        newErrors.date = `Date must be after ${minDate.toLocaleDateString()}`;
+        newErrors.date = `Date must be on or after ${(minDate.getMonth() + 1).toString().padStart(2, '0')}/${minDate.getDate().toString().padStart(2, '0')}/${minDate.getFullYear()}`;
       }
       if (date > maxDate) {
-        newErrors.date = `Date must be before ${maxDate.toLocaleDateString()}`;
+        newErrors.date = `Date must be on or before ${(maxDate.getMonth() + 1).toString().padStart(2, '0')}/${maxDate.getDate().toString().padStart(2, '0')}/${maxDate.getFullYear()}`;
       }
     }
     
@@ -338,7 +338,13 @@ export default function AttendanceHolesModal({
             </div>
             
             <div className="text-sm text-gray-500">
-              Date must be between {currentHole.dateRange.min && new Date(currentHole.dateRange.min).getTime() > new Date('1900-01-01').getTime() ? new Date(currentHole.dateRange.min).toLocaleDateString() : 'any time'} and {new Date(currentHole.dateRange.max).toLocaleDateString()}
+              Date must be from {currentHole.dateRange.min && new Date(currentHole.dateRange.min).getTime() > new Date('1900-01-01').getTime() ? (() => {
+                const minDate = new Date(currentHole.dateRange.min);
+                return `${(minDate.getMonth() + 1).toString().padStart(2, '0')}/${minDate.getDate().toString().padStart(2, '0')}/${minDate.getFullYear()}`;
+              })() : 'any time'} to {(() => {
+                const maxDate = new Date(currentHole.dateRange.max);
+                return `${(maxDate.getMonth() + 1).toString().padStart(2, '0')}/${maxDate.getDate().toString().padStart(2, '0')}/${maxDate.getFullYear()}`;
+              })()} (inclusive)
             </div>
           </div>
 
@@ -360,7 +366,7 @@ export default function AttendanceHolesModal({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {currentDate ? currentDate.toLocaleDateString() : "Pick a date"}
+                    {currentDate ? `${(currentDate.getMonth() + 1).toString().padStart(2, '0')}/${currentDate.getDate().toString().padStart(2, '0')}/${currentDate.getFullYear()}` : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
