@@ -134,7 +134,7 @@ export default function SignInForm({}: LoginFormProps) {
             }),
           )
           console.log("Student signed in successfully!")
-          router.push("/search")
+          router.push("/student")
           return
         } else {
           // Authentication failed

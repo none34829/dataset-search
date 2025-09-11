@@ -153,6 +153,16 @@ export default function ExternalDatabasesPage() {
                     </Link>
                   </li>
                 )}
+                {user.type === 'student' && (
+                  <li>
+                    <Link 
+                      href="/student"
+                      className="px-3 py-2"
+                    >
+                      Home
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link 
                     href="/search"
